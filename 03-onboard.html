@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Onboard — Client Onboarding Workspace</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  :root {
+    --accent: #0f766e;
+  }
+
+  .onboard-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    height: 100%;
+  }
+
+  .stages-col {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .progress-col {
+    flex: 0 0 220px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    text-align: center;
+  }
+
+  @media (max-width: 900px) {
+    .onboard-layout { flex-direction: column; height: auto; }
+    .progress-col { flex: 0 0 auto; width: 100%; }
+  }
+
+  .progress-col .progress-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .ring-wrap {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 14px;
+  }
+
+  .ring-wrap svg { transform: rotate(-90deg); }
+
+  .ring-track { fill: none; stroke: var(--border); stroke-width: 9; }
+  .ring-fill { fill: none; stroke: var(--accent); stroke-width: 9; stroke-linecap: round; transition: stroke-dashoffset 0.25s ease; }
+
+  .ring-pct {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .progress-meta {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .progress-meta strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* Stage card */
+  .stage-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .stage-card.locked {
+    opacity: 0.55;
+  }
+
+  .stage-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .stage-card.locked .stage-header {
+    cursor: default;
+  }
+
+  .stage-num {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .stage-card.complete .stage-num {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-contrast);
+  }
+
+  .stage-card.active .stage-num {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .stage-title-wrap {
+    flex: 1 1 auto;
+  }
+
+  .stage-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .stage-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .stage-chevron {
+    font-size: 12px;
+    color: var(--muted);
+    transition: transform 0.15s ease;
+  }
+
+  .stage-card.expanded .stage-chevron {
+    transform: rotate(90deg);
+  }
+
+  .lock-tag {
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 9px;
+  }
+
+  .stage-body {
+    border-top: 1px solid var(--border);
+    padding: 6px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .step-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+  }
+
+  .step-row label {
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .step-row.done label {
+    color: var(--muted);
+    text-decoration: line-through;
+  }
+
+  .step-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+
+  .step-row input[type="checkbox"]:disabled {
+    cursor: default;
+  }
+
+  /* Clients list view */
+  .client-row-name {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .client-row-stage {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .mini-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mini-bar-track {
+    flex: 1 1 auto;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .mini-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+  }
+
+  .mini-bar-pct {
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    width: 36px;
+    text-align: right;
+  }
+
+  /* Templates view */
+  .template-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .template-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+
+  .template-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .template-card-head h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .template-stage-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  /* Settings view */
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    max-width: 520px;
+  }
+
+  .settings-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .settings-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .toggle-switch {
+    position: relative;
+    flex: 0 0 auto;
+    width: 40px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--border);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .toggle-switch.on {
+    background: var(--accent);
+  }
+
+  .toggle-switch .knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s ease;
+  }
+
+  .toggle-switch.on .knob {
+    transform: translateX(18px);
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    margin-bottom: 14px;
+  }
+
+  .back-link:hover { color: var(--text); }
+
+  /* ---------------------------------------------------------------
+     Guided tour (Arcade-style spotlight + step caption)
+     --------------------------------------------------------------- */
+  .tour-btn {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    flex: 0 0 auto;
+  }
+
+  .tour-btn:hover { opacity: 0.92; }
+
+  .tour-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 200;
+    display: none;
+  }
+
+  .tour-scrim.active { display: block; }
+
+  .tour-ring {
+    position: fixed;
+    z-index: 201;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 24px rgba(0,0,0,0.5);
+    pointer-events: none;
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  }
+
+  .tour-card {
+    position: fixed;
+    z-index: 202;
+    width: min(300px, calc(100vw - 32px));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    padding: 16px;
+    transition: top 0.25s ease, left 0.25s ease;
+  }
+
+  .tour-card .tour-step {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .tour-card .tour-tool {
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px 3px 6px;
+    margin-bottom: 10px;
+    width: fit-content;
+  }
+
+  .tour-card .tour-tool img {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+
+  .tour-card .tour-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .tour-card .tour-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tour-card .tour-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .tour-card .tour-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .tour-card .tour-dot.current { background: var(--accent); }
+
+  .tour-card .tour-nav-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .tour-card button.tour-next {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .tour-card button.tour-skip {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 6px 4px;
+  }
+
+  .tour-card button.tour-skip:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <a href="index.html" class="back-link"><span class="back-arrow">←</span> All apps</a>
+    <div class="logo"><span class="logo-dot"></span> Onboard</div>
+    <nav class="app-nav">
+      <a href="#" class="nav-link active" data-view="workspace">Workspace</a>
+      <a href="#" class="nav-link" data-view="clients">Clients</a>
+      <a href="#" class="nav-link" data-view="templates">Templates</a>
+      <a href="#" class="nav-link" data-view="settings">Settings</a>
+    </nav>
+    <div class="app-sidebar-footer">
+      <div class="footer-label">Built on</div>
+      <div class="tool-badge-row">
+        <span class="badge-tool" data-tool="hubspot"><img src="https://www.google.com/s2/favicons?domain=hubspot.com&sz=32" alt=""> HubSpot</span>
+        <span class="badge-tool" data-tool="notion"><img src="https://www.google.com/s2/favicons?domain=notion.so&sz=32" alt=""> Notion</span>
+        <span class="badge-tool" data-tool="make"><img src="https://www.google.com/s2/favicons?domain=make.com&sz=32" alt=""> Make.com</span>
+        <span class="badge-tool" data-tool="loom"><img src="https://www.google.com/s2/favicons?domain=loom.com&sz=32" alt=""> Loom</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="app-main">
+    <div class="app-topbar">
+      <div>
+        <h1 id="topbarTitle">Client Onboarding</h1>
+        <div class="topbar-sub" id="topbarSub">Each stage unlocks once every step in the prior stage is checked off</div>
+      </div>
+      <button class="tour-btn" id="tourBtn" type="button">▶ Take the tour</button>
+    </div>
+
+    <div class="app-content">
+
+      <div id="view-workspace" class="onboard-layout">
+        <div class="stages-col" id="stages"></div>
+
+        <div class="progress-col">
+          <div class="progress-label">Overall progress</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 120 120" width="120" height="120">
+              <circle class="ring-track" cx="60" cy="60" r="50"></circle>
+              <circle class="ring-fill" id="ringFill" cx="60" cy="60" r="50"></circle>
+            </svg>
+            <div class="ring-pct" id="ringPct">0%</div>
+          </div>
+          <div class="progress-meta" id="progressMeta"></div>
+        </div>
+      </div>
+
+      <div id="view-clients" style="display:none;"></div>
+
+      <div id="view-templates" style="display:none;"></div>
+
+      <div id="view-settings" style="display:none;"></div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+const CLIENTS = [
+  {
+    id: 'romero',
+    name: 'Romero Dental Group',
+    stages: [
+      {
+        name: 'Contract',
+        steps: [
+          { label: 'Proposal signed', done: true },
+          { label: 'Deposit invoice paid', done: true },
+          { label: 'Master service agreement countersigned', done: false }
+        ]
+      },
+      {
+        name: 'Workspace Setup',
+        steps: [
+          { label: 'HubSpot portal access granted', done: false },
+          { label: 'Notion workspace shared', done: false },
+          { label: 'Make.com scenario credentials connected', done: false },
+          { label: 'Brand assets and tone guide received', done: false }
+        ]
+      },
+      {
+        name: 'Kickoff',
+        steps: [
+          { label: 'Kickoff call scheduled', done: false },
+          { label: 'Kickoff Loom walkthrough recorded', done: false },
+          { label: '30-day success metrics agreed', done: false }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'harborview',
+    name: 'Harborview Logistics',
+    stages: [
+      {
+        name: 'Contract',
+        steps: [
+          { label: 'Proposal signed', done: true },
+          { label: 'Deposit invoice paid', done: true },
+          { label: 'Master service agreement countersigned', done: true }
+        ]
+      },
+      {
+        name: 'Workspace Setup',
+        steps: [
+          { label: 'HubSpot portal access granted', done: true },
+          { label: 'Notion workspace shared', done: true },
+          { label: 'Make.com scenario credentials connected', done: false },
+          { label: 'Brand assets and tone guide received', done: false }
+        ]
+      },
+      {
+        name: 'Kickoff',
+        steps: [
+          { label: 'Kickoff call scheduled', done: false },
+          { label: 'Kickoff Loom walkthrough recorded', done: false },
+          { label: '30-day success metrics agreed', done: false }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'sunline',
+    name: 'Sunline Realty Partners',
+    stages: [
+      {
+        name: 'Contract',
+        steps: [
+          { label: 'Proposal signed', done: true },
+          { label: 'Deposit invoice paid', done: false },
+          { label: 'Master service agreement countersigned', done: false }
+        ]
+      },
+      {
+        name: 'Workspace Setup',
+        steps: [
+          { label: 'HubSpot portal access granted', done: false },
+          { label: 'Notion workspace shared', done: false },
+          { label: 'Make.com scenario credentials connected', done: false },
+          { label: 'Brand assets and tone guide received', done: false }
+        ]
+      },
+      {
+        name: 'Kickoff',
+        steps: [
+          { label: 'Kickoff call scheduled', done: false },
+          { label: 'Kickoff Loom walkthrough recorded', done: false },
+          { label: '30-day success metrics agreed', done: false }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'brightleaf',
+    name: 'Brightleaf Wellness Studio',
+    stages: [
+      {
+        name: 'Contract',
+        steps: [
+          { label: 'Proposal signed', done: true },
+          { label: 'Deposit invoice paid', done: true },
+          { label: 'Master service agreement countersigned', done: true }
+        ]
+      },
+      {
+        name: 'Workspace Setup',
+        steps: [
+          { label: 'HubSpot portal access granted', done: true },
+          { label: 'Notion workspace shared', done: true },
+          { label: 'Make.com scenario credentials connected', done: true },
+          { label: 'Brand assets and tone guide received', done: true }
+        ]
+      },
+      {
+        name: 'Kickoff',
+        steps: [
+          { label: 'Kickoff call scheduled', done: true },
+          { label: 'Kickoff Loom walkthrough recorded', done: false },
+          { label: '30-day success metrics agreed', done: false }
+        ]
+      }
+    ]
+  }
+];
+
+const TEMPLATES = [
+  {
+    name: 'Standard Onboarding',
+    description: 'Default flow for most new clients.',
+    stages: ['Contract', 'Workspace Setup', 'Kickoff']
+  },
+  {
+    name: 'Enterprise Onboarding',
+    description: 'Adds security review and stakeholder alignment for larger accounts.',
+    stages: ['Contract', 'Security & Compliance Review', 'Workspace Setup', 'Stakeholder Alignment', 'Kickoff']
+  },
+  {
+    name: 'Self-Serve Onboarding',
+    description: 'Lightweight flow for clients who configure their own workspace.',
+    stages: ['Contract', 'Self-Setup Checklist', 'Kickoff']
+  }
+];
+
+const state = {
+  view: 'workspace',
+  activeClientId: CLIENTS[0].id,
+  expandedIndex: 0,
+  requireSequential: true
+};
+
+const RING_RADIUS = 50;
+const RING_CIRC = 2 * Math.PI * RING_RADIUS;
+
+function activeClient() {
+  return CLIENTS.find(c => c.id === state.activeClientId);
+}
+
+function stageComplete(stage) {
+  return stage.steps.every(s => s.done);
+}
+
+function isStageUnlocked(client, index) {
+  if (!state.requireSequential) return true;
+  if (index === 0) return true;
+  return stageComplete(client.stages[index - 1]);
+}
+
+function totals(client) {
+  let total = 0, done = 0;
+  client.stages.forEach(stage => {
+    total += stage.steps.length;
+    done += stage.steps.filter(s => s.done).length;
+  });
+  return { total, done };
+}
+
+function clientPct(client) {
+  const { total, done } = totals(client);
+  return total === 0 ? 0 : Math.round((done / total) * 100);
+}
+
+function clientCurrentStageName(client) {
+  for (let i = 0; i < client.stages.length; i++) {
+    if (!stageComplete(client.stages[i])) return client.stages[i].name;
+  }
+  return 'Complete';
+}
+
+function openClient(id) {
+  state.activeClientId = id;
+  state.expandedIndex = 0;
+  state.view = 'workspace';
+  renderApp();
+}
+
+function renderApp() {
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.toggle('active', link.dataset.view === state.view);
+  });
+
+  document.getElementById('view-workspace').style.display = state.view === 'workspace' ? 'flex' : 'none';
+  document.getElementById('view-clients').style.display = state.view === 'clients' ? 'block' : 'none';
+  document.getElementById('view-templates').style.display = state.view === 'templates' ? 'block' : 'none';
+  document.getElementById('view-settings').style.display = state.view === 'settings' ? 'block' : 'none';
+
+  const client = activeClient();
+  const titles = {
+    workspace: `Client Onboarding — ${client.name}`,
+    clients: 'Clients',
+    templates: 'Templates',
+    settings: 'Settings'
+  };
+  const subs = {
+    workspace: state.requireSequential
+      ? 'Each stage unlocks once every step in the prior stage is checked off'
+      : 'Sequential gating is off — all stages are expandable',
+    clients: 'Every client currently in onboarding, with live progress',
+    templates: 'Reference stage structures used to start a new client onboarding',
+    settings: 'Workspace-wide onboarding behavior'
+  };
+  document.getElementById('topbarTitle').textContent = titles[state.view];
+  document.getElementById('topbarSub').textContent = subs[state.view];
+
+  if (state.view === 'workspace') {
+    renderWorkspace();
+  } else if (state.view === 'clients') {
+    renderClients();
+  } else if (state.view === 'templates') {
+    renderTemplates();
+  } else if (state.view === 'settings') {
+    renderSettings();
+  }
+}
+
+function renderWorkspace() {
+  const client = activeClient();
+  const stagesEl = document.getElementById('stages');
+
+  stagesEl.innerHTML = client.stages.map((stage, i) => {
+    const unlocked = isStageUnlocked(client, i);
+    const complete = stageComplete(stage);
+    const isExpanded = unlocked && state.expandedIndex === i;
+    const doneCount = stage.steps.filter(s => s.done).length;
+
+    const classes = [
+      'stage-card',
+      unlocked ? '' : 'locked',
+      complete ? 'complete' : '',
+      (unlocked && !complete) ? 'active' : '',
+      isExpanded ? 'expanded' : ''
+    ].filter(Boolean).join(' ');
+
+    return `
+      <div class="${classes}" data-index="${i}">
+        <div class="stage-header" data-toggle="${i}">
+          <div class="stage-num">${complete ? '✓' : (i + 1)}</div>
+          <div class="stage-title-wrap">
+            <div class="stage-title">${stage.name}</div>
+            <div class="stage-sub">${doneCount} of ${stage.steps.length} steps complete</div>
+          </div>
+          ${unlocked ? '<span class="stage-chevron">&#9656;</span>' : '<span class="lock-tag">Locked</span>'}
+        </div>
+        ${isExpanded ? `
+          <div class="stage-body">
+            ${stage.steps.map((step, si) => `
+              <div class="step-row ${step.done ? 'done' : ''}">
+                <input type="checkbox" id="step-${i}-${si}" data-stage="${i}" data-step="${si}" ${step.done ? 'checked' : ''}>
+                <label for="step-${i}-${si}">${step.label}</label>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+
+  // wire up header toggles (only for unlocked stages)
+  stagesEl.querySelectorAll('.stage-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const idx = Number(header.dataset.toggle);
+      if (!isStageUnlocked(client, idx)) return;
+      state.expandedIndex = (state.expandedIndex === idx) ? -1 : idx;
+      renderWorkspace();
+    });
+  });
+
+  // wire up checkboxes
+  stagesEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const si = Number(cb.dataset.stage);
+      const sj = Number(cb.dataset.step);
+      client.stages[si].steps[sj].done = cb.checked;
+
+      // if this stage just lost completeness, any later expanded stage
+      // that is now locked again should collapse back
+      if (state.requireSequential && state.expandedIndex > si && !isStageUnlocked(client, state.expandedIndex)) {
+        state.expandedIndex = si;
+      }
+      renderWorkspace();
+    });
+  });
+
+  renderRing(client);
+}
+
+function renderRing(client) {
+  const { total, done } = totals(client);
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+
+  const fill = document.getElementById('ringFill');
+  const offset = RING_CIRC - (pct / 100) * RING_CIRC;
+  fill.setAttribute('stroke-dasharray', RING_CIRC);
+  fill.setAttribute('stroke-dashoffset', offset);
+
+  document.getElementById('ringPct').textContent = pct + '%';
+  document.getElementById('progressMeta').innerHTML = `<strong>${done}</strong> of <strong>${total}</strong> steps done`;
+}
+
+function renderClients() {
+  const container = document.getElementById('view-clients');
+
+  const rows = CLIENTS.map(client => {
+    const pct = clientPct(client);
+    const stageName = clientCurrentStageName(client);
+    return `
+      <tr class="clickable" data-client="${client.id}">
+        <td><span class="client-row-name">${client.name}</span></td>
+        <td><span class="client-row-stage">${stageName}</span></td>
+        <td>
+          <div class="mini-bar-wrap">
+            <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${pct}%"></div></div>
+            <div class="mini-bar-pct">${pct}%</div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Current stage</th>
+          <th>Overall progress</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  container.querySelectorAll('tr.clickable').forEach(row => {
+    row.addEventListener('click', () => openClient(row.dataset.client));
+  });
+}
+
+function renderTemplates() {
+  const container = document.getElementById('view-templates');
+
+  container.innerHTML = `
+    <div class="template-grid">
+      ${TEMPLATES.map(t => `
+        <div class="template-card">
+          <div class="template-card-head">
+            <h3>${t.name}</h3>
+            <span class="badge">${t.stages.length} stages</span>
+          </div>
+          <div class="stage-sub">${t.description}</div>
+          <div class="template-stage-list">
+            ${t.stages.map(s => `<span class="badge">${s}</span>`).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderSettings() {
+  const container = document.getElementById('view-settings');
+
+  container.innerHTML = `
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Require sequential stage completion</div>
+        <div class="settings-sub">When off, any stage can be expanded regardless of prior-stage progress</div>
+      </div>
+      <button class="toggle-switch ${state.requireSequential ? 'on' : ''}" id="sequentialToggle">
+        <span class="knob"></span>
+      </button>
+    </div>
+  `;
+
+  document.getElementById('sequentialToggle').addEventListener('click', () => {
+    state.requireSequential = !state.requireSequential;
+    renderSettings();
+  });
+}
+
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    state.view = link.dataset.view;
+    renderApp();
+  });
+});
+
+renderApp();
+
+/* ---------------------------------------------------------------
+   Guided tour (Arcade-style spotlight + step caption)
+   --------------------------------------------------------------- */
+const TOOL_ICONS = {
+  hubspot: { name: 'HubSpot', domain: 'hubspot.com' },
+  notion:  { name: 'Notion', domain: 'notion.so' },
+  make:    { name: 'Make.com', domain: 'make.com' },
+  loom:    { name: 'Loom', domain: 'loom.com' }
+};
+
+const TOUR_STEPS = [
+  {
+    target: () => document.querySelector('.app-topbar h1'),
+    text: 'This is the onboarding workspace — it tracks every client through Contract, Workspace Setup, and Kickoff with a real progress ring, not a status someone typed in.',
+    before: () => { state.view = 'workspace'; state.activeClientId = 'romero'; state.expandedIndex = 0; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="hubspot"]'),
+    tool: 'hubspot',
+    text: 'It starts the moment a deal closes in HubSpot — that close is the trigger that creates this client\'s onboarding workspace automatically.',
+    before: () => { state.view = 'workspace'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="make"]'),
+    tool: 'make',
+    text: 'Make.com is what actually catches that HubSpot trigger and runs the setup — creating the Notion workspace, sending the welcome sequence, queuing the Loom video. One closed deal, one automation, several things happening at once.'
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="notion"]'),
+    tool: 'notion',
+    text: 'Notion is where the actual client workspace lives — the checklist you\'re about to check off isn\'t just UI state here, it mirrors a real shared workspace the client and your team both see.'
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="loom"]'),
+    tool: 'loom',
+    text: 'A Loom welcome video goes out the same moment the workspace is created — the client gets a face and a voice on day one instead of just a checklist link in an email.'
+  },
+  {
+    target: () => document.querySelector('#stages .stage-card[data-index="0"] .stage-header'),
+    text: 'Click a stage header to expand its checklist. Romero Dental Group\'s Contract stage is open by default — watch the progress ring on the right as you check items off.',
+    action: () => {
+      const header = document.querySelector('#stages .stage-card[data-index="0"] .stage-header');
+      if (header && state.expandedIndex !== 0) header.click();
+    }
+  },
+  {
+    target: () => document.querySelector('#step-0-2'),
+    text: 'Check off the last Contract step — "Master service agreement countersigned" — and the ring updates instantly because it\'s reading the actual steps data, not a hardcoded percentage.',
+    action: () => {
+      const cb = document.getElementById('step-0-2');
+      if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+    }
+  },
+  {
+    target: () => document.querySelector('#stages .stage-card[data-index="1"] .stage-header'),
+    text: 'Here is the actual gating rule: isStageUnlocked() checks that every step in the prior stage is done before the next stage opens. A moment ago, Romero Dental Group\'s Workspace Setup stage was locked because Contract was only 2 of 3 steps complete — checking off that last item just unlocked it.',
+    before: () => { state.activeClientId = 'romero'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="clients"]'),
+    text: 'The Clients view lines up every client\'s current stage and overall progress side by side — useful for seeing who is stalled at a glance.',
+    action: () => { state.view = 'clients'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="settings"]'),
+    text: 'Settings holds the sequential-gating toggle. Turn "Require sequential stage completion" off and isStageUnlocked() returns true for every stage — the lock tags disappear and any stage can be opened regardless of what came before.',
+    action: () => { state.view = 'settings'; renderApp(); }
+  }
+];
+
+let tourIndex = 0;
+let tourEls = null;
+
+function buildTourEls() {
+  if (tourEls) return tourEls;
+  const scrim = document.createElement('div');
+  scrim.className = 'tour-scrim';
+  const ring = document.createElement('div');
+  ring.className = 'tour-ring';
+  const card = document.createElement('div');
+  card.className = 'tour-card';
+  card.innerHTML = `
+    <div class="tour-step" id="tourStepLabel"></div>
+    <div class="tour-tool" id="tourTool" style="display:none;"></div>
+    <div class="tour-text" id="tourText"></div>
+    <div class="tour-controls">
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-nav-btns">
+        <button class="tour-skip" id="tourSkipBtn" type="button">Skip</button>
+        <button class="tour-next" id="tourNextBtn" type="button">Next</button>
+      </div>
+    </div>
+  `;
+  document.body.append(scrim, ring, card);
+  tourEls = { scrim, ring, card };
+  document.getElementById('tourSkipBtn').addEventListener('click', endTour);
+  document.getElementById('tourNextBtn').addEventListener('click', advanceTour);
+  return tourEls;
+}
+
+function positionTour(target) {
+  const { ring, card } = buildTourEls();
+  const r = target.getBoundingClientRect();
+  const pad = 6;
+  ring.style.top = (r.top - pad) + 'px';
+  ring.style.left = (r.left - pad) + 'px';
+  ring.style.width = (r.width + pad * 2) + 'px';
+  ring.style.height = (r.height + pad * 2) + 'px';
+
+  const cardWidth = 300;
+  let cardTop = r.bottom + 14;
+  let cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
+  if (cardTop + 140 > window.innerHeight) cardTop = Math.max(r.top - 160, 16);
+  card.style.top = cardTop + 'px';
+  card.style.left = cardLeft + 'px';
+}
+
+function runTourStep(index) {
+  const step = TOUR_STEPS[index];
+  if (!step) return endTour();
+  if (step.before) step.before();
+  if (step.action) step.action();
+
+  setTimeout(() => {
+    const target = step.target();
+    if (!target) return advanceTour();
+    target.scrollIntoView({ block: 'nearest' });
+    positionTour(target);
+
+    document.getElementById('tourStepLabel').textContent = `Step ${index + 1} of ${TOUR_STEPS.length}`;
+    const toolEl = document.getElementById('tourTool');
+    if (step.tool && TOOL_ICONS[step.tool]) {
+      const t = TOOL_ICONS[step.tool];
+      toolEl.style.display = 'flex';
+      toolEl.innerHTML = `<img src="https://www.google.com/s2/favicons?domain=${t.domain}&sz=32" alt=""> Powered by ${t.name}`;
+    } else {
+      toolEl.style.display = 'none';
+      toolEl.innerHTML = '';
+    }
+    document.getElementById('tourText').textContent = step.text;
+    document.getElementById('tourNextBtn').textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+    document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) =>
+      `<span class="tour-dot ${i === index ? 'current' : ''}"></span>`).join('');
+  });
+}
+
+function advanceTour() {
+  tourIndex += 1;
+  if (tourIndex >= TOUR_STEPS.length) return endTour();
+  runTourStep(tourIndex);
+}
+
+function startTour() {
+  tourIndex = 0;
+  buildTourEls();
+  tourEls.scrim.classList.add('active');
+  runTourStep(0);
+}
+
+function endTour() {
+  if (!tourEls) return;
+  tourEls.scrim.classList.remove('active');
+  tourEls.ring.style.width = '0px';
+  tourEls.ring.style.height = '0px';
+  tourEls.card.style.top = '-9999px';
+}
+
+document.getElementById('tourBtn').addEventListener('click', startTour);
+window.addEventListener('resize', () => {
+  if (tourEls && tourEls.scrim.classList.contains('active')) positionTour(TOUR_STEPS[tourIndex].target());
+});
+</script>
+
+</body>
+</html>

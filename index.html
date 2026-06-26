@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Ops Expert — Portfolio Apps</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { padding: 48px 24px 64px; }
+
+  .gallery-header {
+    max-width: 1040px;
+    margin: 0 auto 36px;
+  }
+
+  .gallery-header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    color: var(--text);
+  }
+
+  .gallery-header p {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  .app-grid {
+    max-width: 1040px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .app-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .app-card .card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .app-card h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .app-card h2::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--accent);
+    flex: 0 0 auto;
+  }
+
+  .app-card .card-area {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  .app-card .card-desc {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0;
+    flex: 1;
+  }
+
+  .app-card .card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .app-card .card-badges .badge-tool {
+    padding: 3px 8px;
+  }
+
+  .app-card .card-badges .badge-tool img {
+    width: 14px;
+    height: 14px;
+  }
+
+  .app-card .card-open {
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="gallery-header">
+    <h1>Daniel Schley — AI Ops Expert: 8 Working Automation Systems</h1>
+    <p>Built end-to-end and fully interactive — eight standalone tools covering the core operations of a small business, each running real logic on the stack I deploy for clients.</p>
+  </div>
+
+  <div class="app-grid" id="grid">
+
+    <div class="app-card" style="--accent:#2f6fed;">
+      <div class="card-top">
+        <h2>LeadPilot</h2>
+      </div>
+      <p class="card-area">Marketing &amp; Lead Gen</p>
+      <p class="card-desc">Sortable, filterable lead table — selecting a lead generates a data-driven follow-up draft on the spot.</p>
+      <div class="card-badges">
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=webflow.com&sz=32" alt=""> Webflow</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=make.com&sz=32" alt=""> Make.com</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=anthropic.com&sz=32" alt=""> Claude</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=hubspot.com&sz=32" alt=""> HubSpot</span>
+      </div>
+      <a class="card-open" href="01-leadpilot.html">Open app →</a>
+    </div>
+
+    <div class="app-card" style="--accent:#c2410c;">
+      <div class="card-top">
+        <h2>PipelineIQ</h2>
+      </div>
+      <p class="card-area">Sales</p>
+      <p class="card-desc">Drag-and-drop deal kanban — moving a card live-recalculates column totals and weighted forecast.</p>
+      <div class="card-badges">
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=hubspot.com&sz=32" alt=""> HubSpot</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=make.com&sz=32" alt=""> Make.com</span>
+      </div>
+      <a class="card-open" href="02-pipelineiq.html">Open app →</a>
+    </div>
+
+    <div class="app-card" style="--accent:#0f766e;">
+      <div class="card-top">
+        <h2>Onboard</h2>
+      </div>
+      <p class="card-area">Onboarding</p>
+      <p class="card-desc">Staged onboarding checklist — completing a stage unlocks the next and updates a computed progress ring.</p>
+      <div class="card-badges">
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=hubspot.com&sz=32" alt=""> HubSpot</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=notion.so&sz=32" alt=""> Notion</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=make.com&sz=32" alt=""> Make.com</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=loom.com&sz=32" alt=""> Loom</span>
+      </div>
+      <a class="card-open" href="03-onboard.html">Open app →</a>
+    </div>
+
+    <div class="app-card" style="--accent:#5b21b6;">
+      <div class="card-top">
+        <h2>FlowDesk</h2>
+      </div>
+      <p class="card-area">Delivery</p>
+      <p class="card-desc">Task board with due-date sort and SOP panel — "Draft first pass" generates a brief from task + SOP data.</p>
+      <div class="card-badges">
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=clickup.com&sz=32" alt=""> ClickUp</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=notion.so&sz=32" alt=""> Notion</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=anthropic.com&sz=32" alt=""> Claude</span>
+      </div>
+      <a class="card-open" href="04-flowdesk.html">Open app →</a>
+    </div>
+
+    <div class="app-card" style="--accent:#be185d;">
+      <div class="card-top">
+        <h2>KnowledgeBase</h2>
+      </div>
+      <p class="card-area">Communication &amp; Knowledge</p>
+      <p class="card-desc">Live search and tag filters across a real SOP article set — every keystroke narrows the result list.</p>
+      <div class="card-badges">
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=notion.so&sz=32" alt=""> Notion</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=loom.com&sz=32" alt=""> Loom</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=workspace.google.com&sz=32" alt=""> Google Workspace</span>
+      </div>
+      <a class="card-open" href="05-knowledgebase.html">Open app →</a>
+    </div>
+
+    <div class="app-card" style="--accent:#15803d;">
+      <div class="card-top">
+        <h2>LedgerFlow</h2>
+      </div>
+      <p class="card-area">Finance &amp; Billing</p>
+      <p class="card-desc">Invoice table — toggling an invoice to paid recalculates AR aging buckets and DSO immediately.</p>
+      <div class="card-badges">
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=make.com&sz=32" alt=""> Make.com</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=airtable.com&sz=32" alt=""> Airtable</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=hubspot.com&sz=32" alt=""> HubSpot</span>
+      </div>
+      <a class="card-open" href="06-ledgerflow.html">Open app →</a>
+    </div>
+
+    <div class="app-card" style="--accent:#0891b2;">
+      <div class="card-top">
+        <h2>PulseBoard</h2>
+      </div>
+      <p class="card-area">Reporting &amp; Analytics</p>
+      <p class="card-desc">Date-range and segment filters redraw a live chart plus a generated plain-English trend summary.</p>
+      <div class="card-badges">
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=airtable.com&sz=32" alt=""> Airtable</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=supabase.com&sz=32" alt=""> Supabase</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=anthropic.com&sz=32" alt=""> Claude</span>
+      </div>
+      <a class="card-open" href="07-pulseboard.html">Open app →</a>
+    </div>
+
+    <div class="app-card" style="--accent:#b45309;">
+      <div class="card-top">
+        <h2>RetainAI</h2>
+      </div>
+      <p class="card-area">Retention &amp; Support</p>
+      <p class="card-desc">Ticket queue filterable by priority and health score — selecting a ticket drafts a tailored response.</p>
+      <div class="card-badges">
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=hubspot.com&sz=32" alt=""> HubSpot</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=make.com&sz=32" alt=""> Make.com</span>
+        <span class="badge-tool"><img src="https://www.google.com/s2/favicons?domain=anthropic.com&sz=32" alt=""> Claude</span>
+      </div>
+      <a class="card-open" href="08-retainai.html">Open app →</a>
+    </div>
+
+  </div>
+
+</body>
+</html>

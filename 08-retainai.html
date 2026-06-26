@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RetainAI — Customer Support &amp; Retention Queue</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  :root {
+    --accent: #b45309;
+  }
+
+  .retain-layout {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .table-col {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .priority-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+  }
+
+  .priority-High { color: #f87171; border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.12); }
+  .priority-Medium { color: #fbbf24; border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.12); }
+  .priority-Low { color: #4ade80; border-color: rgba(74,222,128,0.3); background: rgba(74,222,128,0.12); }
+
+  .health-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  .health-high { background: rgba(74,222,128,0.14); color: #4ade80; }
+  .health-mid  { background: rgba(251,191,36,0.14); color: #fbbf24; }
+  .health-low  { background: rgba(248,113,113,0.14); color: #f87171; }
+
+  .status-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--bg);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .detail-panel {
+    flex: 0 0 360px;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  @media (max-width: 900px) {
+    .retain-layout { flex-direction: column; height: auto; }
+    .detail-panel {
+      flex: 0 0 auto;
+      width: 100%;
+      border-left: none;
+      border-top: 1px solid var(--border);
+      max-height: 70vh;
+    }
+  }
+
+  .detail-panel.empty {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .detail-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .detail-header .name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .detail-header .subject {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .detail-body {
+    padding: 18px 20px;
+    flex: 1;
+  }
+
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .detail-row:last-of-type { border-bottom: none; }
+
+  .detail-row .label { color: var(--muted); }
+  .detail-row .value { color: var(--text); font-weight: 500; }
+
+  .detail-message {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .detail-message .label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .generate-btn {
+    margin-top: 16px;
+    width: 100%;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 9px 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .generate-btn:hover { opacity: 0.92; }
+
+  .draft-output {
+    margin-top: 14px;
+    padding: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+
+  .draft-output .label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .result-count {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .filter-group-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-right: 4px;
+  }
+
+  .filter-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    margin: 0 6px;
+  }
+
+  /* ---------------------------------------------------------------
+     Customers view
+     --------------------------------------------------------------- */
+  .customers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  .customer-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 16px;
+  }
+
+  .customer-card.at-risk {
+    border-color: rgba(248,113,113,0.45);
+  }
+
+  .customer-card .customer-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+
+  .customer-card .customer-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .risk-flag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #f87171;
+    border: 1px solid rgba(248,113,113,0.35);
+    background: rgba(248,113,113,0.12);
+  }
+
+  .customer-card .customer-meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .customer-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .customer-stat-row .label { color: var(--muted); }
+  .customer-stat-row .value { color: var(--text); font-weight: 500; }
+
+  .avg-note {
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* ---------------------------------------------------------------
+     Settings view
+     --------------------------------------------------------------- */
+  .settings-panel {
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .settings-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .settings-row .settings-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .settings-row .settings-help {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .settings-control input[type="number"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    padding: 6px 10px;
+    width: 70px;
+    text-align: right;
+  }
+
+  .settings-summary {
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  .at-risk-pill {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #f87171;
+    border: 1px solid rgba(248,113,113,0.35);
+    background: rgba(248,113,113,0.12);
+  }
+
+  /* ---------------------------------------------------------------
+     Guided tour (Arcade-style spotlight + step caption)
+     --------------------------------------------------------------- */
+  .tour-btn {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    flex: 0 0 auto;
+  }
+
+  .tour-btn:hover { opacity: 0.92; }
+
+  .tour-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 200;
+    display: none;
+  }
+
+  .tour-scrim.active { display: block; }
+
+  .tour-ring {
+    position: fixed;
+    z-index: 201;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 24px rgba(0,0,0,0.5);
+    pointer-events: none;
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  }
+
+  .tour-card {
+    position: fixed;
+    z-index: 202;
+    width: min(300px, calc(100vw - 32px));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    padding: 16px;
+    transition: top 0.25s ease, left 0.25s ease;
+  }
+
+  .tour-card .tour-step {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .tour-card .tour-tool {
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px 3px 6px;
+    margin-bottom: 10px;
+    width: fit-content;
+  }
+
+  .tour-card .tour-tool img {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+
+  .tour-card .tour-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .tour-card .tour-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tour-card .tour-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .tour-card .tour-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .tour-card .tour-dot.current { background: var(--accent); }
+
+  .tour-card .tour-nav-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .tour-card button.tour-next {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .tour-card button.tour-skip {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 6px 4px;
+  }
+
+  .tour-card button.tour-skip:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <a href="index.html" class="back-link"><span class="back-arrow">←</span> All apps</a>
+    <div class="logo"><span class="logo-dot"></span> RetainAI</div>
+    <nav class="app-nav">
+      <a href="#" class="nav-link active" data-view="tickets">Tickets</a>
+      <a href="#" class="nav-link" data-view="customers">Customers</a>
+      <a href="#" class="nav-link" data-view="settings">Settings</a>
+    </nav>
+    <div class="app-sidebar-footer">
+      <div class="footer-label">Built on</div>
+      <div class="tool-badge-row">
+        <span class="badge-tool" data-tool="hubspot"><img src="https://www.google.com/s2/favicons?domain=hubspot.com&sz=32" alt=""> HubSpot</span>
+        <span class="badge-tool" data-tool="make"><img src="https://www.google.com/s2/favicons?domain=make.com&sz=32" alt=""> Make.com</span>
+        <span class="badge-tool" data-tool="claude"><img src="https://www.google.com/s2/favicons?domain=anthropic.com&sz=32" alt=""> Claude</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="app-main">
+    <div class="app-topbar">
+      <div>
+        <h1 id="topbarTitle">Support &amp; Retention Queue</h1>
+        <div class="topbar-sub" id="topbarSub">Open tickets ranked by priority and account health</div>
+      </div>
+      <button class="tour-btn" id="tourBtn" type="button">▶ Take the tour</button>
+    </div>
+
+    <div class="app-content">
+      <div class="retain-layout" id="view-tickets">
+        <div class="table-col">
+          <div class="filter-bar" id="filterBar">
+            <span class="filter-group-label">Priority</span>
+            <button class="filter-chip active" data-priority="All">All</button>
+            <button class="filter-chip" data-priority="Low">Low</button>
+            <button class="filter-chip" data-priority="Medium">Medium</button>
+            <button class="filter-chip" data-priority="High">High</button>
+            <span class="filter-divider"></span>
+            <span class="filter-group-label">Health</span>
+            <button class="filter-chip active" data-health="All">All</button>
+            <button class="filter-chip" data-health="below50">Below 50</button>
+            <button class="filter-chip" data-health="50plus">50+</button>
+          </div>
+
+          <div class="result-count" id="resultCount"></div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Subject</th>
+                <th>Priority</th>
+                <th class="num">Health</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="ticketsBody"></tbody>
+          </table>
+        </div>
+
+        <aside class="detail-panel empty" id="detailPanel">
+          Select a ticket to view details and generate a response.
+        </aside>
+      </div>
+
+      <div class="customers-grid" id="view-customers" style="display:none;"></div>
+
+      <div class="settings-panel" id="view-settings" style="display:none;"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const TICKETS = [
+  { id: 1, customer: 'Marcus Hale', subject: 'Duplicate charge on last invoice', priority: 'High', healthScore: 38, status: 'Open', message: 'I was charged twice this month for the same invoice. Can you check the payment and refund the extra charge as soon as possible?' },
+  { id: 2, customer: 'Priya Nair', subject: 'Dashboard export not working', priority: 'High', healthScore: 44, status: 'Open', message: 'The CSV export button on the reporting dashboard is broken. Nothing happens when I click it, and I am seeing an error in the console too.' },
+  { id: 3, customer: 'Dean Foster', subject: 'Question about plan upgrade', priority: 'Low', healthScore: 81, status: 'Open', message: 'Thinking about upgrading to the next tier. Can you tell me what changes with billing if we switch mid-cycle?' },
+  { id: 4, customer: 'Anita Romero', subject: 'Automation stopped triggering', priority: 'High', healthScore: 52, status: 'In Progress', message: 'Our reminder automation just stopped working yesterday. Nothing has changed on our end, it is just broken and patients are not getting texts.' },
+  { id: 5, customer: 'Greg Talbot', subject: 'Invoice total looks wrong', priority: 'Medium', healthScore: 58, status: 'Open', message: 'The invoice we received this month shows a higher charge than our usual plan price. Can someone confirm the payment amount is correct?' },
+  { id: 6, customer: 'Sasha Kim', subject: 'Feature request: bulk export', priority: 'Low', healthScore: 92, status: 'Open', message: 'Would love a way to export all client records at once instead of one at a time. Not urgent, just a nice-to-have.' },
+  { id: 7, customer: 'Owen Brackett', subject: 'Login error on mobile app', priority: 'Medium', healthScore: 47, status: 'Open', message: 'I get an error every time I try to log in from my phone. It works fine on desktop, but the mobile app is broken for me.' },
+  { id: 8, customer: 'Lena Vu', subject: 'Refund request for unused seats', priority: 'High', healthScore: 35, status: 'Open', message: 'We were charged for five seats but only use two. Please process a refund or credit for the unused seats on our last payment.' },
+  { id: 9, customer: 'Carlos Mendez', subject: 'Onboarding call follow-up', priority: 'Low', healthScore: 88, status: 'Open', message: 'Just wanted to say the onboarding call was great. Following up on the workspace template you mentioned sending over.' },
+  { id: 10, customer: 'Tasha Williams', subject: 'Report widget showing blank', priority: 'Medium', healthScore: 60, status: 'In Progress', message: 'The weekly report widget on our dashboard is showing blank, not even an error, just empty. Started yesterday afternoon.' },
+  { id: 11, customer: 'Felix Ortega', subject: 'Double-billed for annual plan', priority: 'High', healthScore: 41, status: 'Open', message: 'It looks like we were charged twice for the annual plan renewal. Please check our payment history and issue a refund for the duplicate charge.' },
+  { id: 12, customer: 'Naomi Park', subject: 'How to add a team member', priority: 'Low', healthScore: 76, status: 'Open', message: 'Trying to figure out how to invite a new team member to our workspace. Could not find the option in settings.' },
+  { id: 13, customer: 'Jordan Reyes', subject: 'Sync with HubSpot failing', priority: 'High', healthScore: 29, status: 'In Progress', message: 'The HubSpot sync has been broken for two days now. Contacts are not updating and we are getting an error every time it runs.' },
+  { id: 14, customer: 'Helena Cho', subject: 'Question on next invoice date', priority: 'Low', healthScore: 84, status: 'Open', message: 'Just want to confirm when our next invoice and payment will be charged so we can plan around it.' },
+  { id: 15, customer: 'Ben Striker', subject: 'Notifications not sending', priority: 'Medium', healthScore: 50, status: 'Open', message: 'Email notifications have stopped sending entirely since the last update. Nothing in spam either, it is just not working.' },
+  { id: 16, customer: 'Marcus Hale', subject: 'Follow-up on refund status', priority: 'Medium', healthScore: 30, status: 'Open', message: 'Following up on the duplicate charge refund from last week. Has it been processed yet? Still has not shown up on our statement.' },
+  { id: 17, customer: 'Marcus Hale', subject: 'Account renewal question', priority: 'Low', healthScore: 60, status: 'Closed', message: 'Just confirming our renewal date now that the refund is sorted. Want to make sure billing is accurate going forward.' }
+];
+
+const state = {
+  view: 'tickets', // 'tickets' | 'customers' | 'settings'
+  priority: 'All',
+  health: 'All',
+  selectedId: null,
+  riskThreshold: 40
+};
+
+function healthClass(score) {
+  if (score >= 70) return 'health-high';
+  if (score >= 50) return 'health-mid';
+  return 'health-low';
+}
+
+function isAtRisk(score) {
+  return score < state.riskThreshold;
+}
+
+const TOPBAR = {
+  tickets: { title: 'Support &amp; Retention Queue', sub: 'Open tickets ranked by priority and account health' },
+  customers: { title: 'Customers', sub: 'Accounts grouped from the ticket queue, with at-risk flags' },
+  settings: { title: 'Settings', sub: 'Tune the health score threshold used for at-risk flags' }
+};
+
+function renderApp() {
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.toggle('active', link.dataset.view === state.view);
+  });
+
+  document.getElementById('view-tickets').style.display = state.view === 'tickets' ? 'flex' : 'none';
+  document.getElementById('view-customers').style.display = state.view === 'customers' ? 'grid' : 'none';
+  document.getElementById('view-settings').style.display = state.view === 'settings' ? 'flex' : 'none';
+
+  const topbar = TOPBAR[state.view];
+  document.getElementById('topbarTitle').innerHTML = topbar.title;
+  document.getElementById('topbarSub').innerHTML = topbar.sub;
+
+  if (state.view === 'tickets') {
+    render();
+    renderDetail();
+  } else if (state.view === 'customers') {
+    renderCustomers();
+  } else if (state.view === 'settings') {
+    renderSettings();
+  }
+}
+
+function getCustomerStats() {
+  const byCustomer = {};
+  TICKETS.forEach(t => {
+    if (!byCustomer[t.customer]) byCustomer[t.customer] = [];
+    byCustomer[t.customer].push(t);
+  });
+
+  return Object.keys(byCustomer).map(customer => {
+    const tickets = byCustomer[customer];
+    const total = tickets.length;
+    const openTickets = tickets.filter(t => t.status !== 'Closed' && t.status !== 'Resolved');
+    const avgHealth = Math.round(
+      (tickets.reduce((sum, t) => sum + t.healthScore, 0) / total) * 10
+    ) / 10;
+    const hasMixedHealth = new Set(tickets.map(t => t.healthScore)).size > 1;
+
+    const priorityRank = { High: 3, Medium: 2, Low: 1 };
+    const topOpenTicket = openTickets.reduce((top, t) => {
+      if (!top) return t;
+      return priorityRank[t.priority] > priorityRank[top.priority] ? t : top;
+    }, null);
+
+    return {
+      customer,
+      total,
+      openCount: openTickets.length,
+      avgHealth,
+      hasMixedHealth,
+      topOpenTicket,
+      atRisk: isAtRisk(avgHealth)
+    };
+  }).sort((a, b) => a.avgHealth - b.avgHealth);
+}
+
+function renderCustomers() {
+  const stats = getCustomerStats();
+  const grid = document.getElementById('view-customers');
+  grid.innerHTML = stats.map(c => `
+    <div class="customer-card ${c.atRisk ? 'at-risk' : ''}">
+      <div class="customer-name-row">
+        <span class="customer-name">${c.customer}</span>
+        ${c.atRisk ? '<span class="risk-flag">At risk</span>' : ''}
+      </div>
+      <div class="customer-meta">${c.total} ticket${c.total === 1 ? '' : 's'} &middot; ${c.openCount} open</div>
+      <div class="customer-stat-row">
+        <span class="label">Health score</span>
+        <span class="value">${c.avgHealth}${c.hasMixedHealth ? ' <span class="avg-note">(avg)</span>' : ''}</span>
+      </div>
+      <div class="customer-stat-row">
+        <span class="label">Top open ticket</span>
+        <span class="value">${c.topOpenTicket ? `${c.topOpenTicket.priority} &middot; ${c.topOpenTicket.subject}` : 'None open'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSettings() {
+  const stats = getCustomerStats();
+  const atRiskCustomers = stats.filter(c => c.atRisk).length;
+  const atRiskTickets = TICKETS.filter(t => isAtRisk(t.healthScore)).length;
+
+  const panel = document.getElementById('view-settings');
+  panel.innerHTML = `
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Health score alert threshold</div>
+        <div class="settings-help">Tickets and customers below this score are flagged "At risk" in the Tickets and Customers views</div>
+      </div>
+      <div class="settings-control">
+        <input type="number" id="riskThresholdInput" min="0" max="100" value="${state.riskThreshold}">
+      </div>
+    </div>
+    <div class="settings-summary" id="riskSummary">
+      Currently flagging ${atRiskTickets} ticket${atRiskTickets === 1 ? '' : 's'} and ${atRiskCustomers} customer${atRiskCustomers === 1 ? '' : 's'} below ${state.riskThreshold}.
+    </div>
+  `;
+
+  document.getElementById('riskThresholdInput').addEventListener('change', (e) => {
+    const val = Number(e.target.value);
+    if (!Number.isFinite(val) || val < 0 || val > 100) {
+      e.target.value = state.riskThreshold;
+      return;
+    }
+    state.riskThreshold = val;
+    renderSettings();
+  });
+}
+
+function getFiltered() {
+  return TICKETS.filter(t => {
+    if (state.priority !== 'All' && t.priority !== state.priority) return false;
+    if (state.health === 'below50' && t.healthScore >= 50) return false;
+    if (state.health === '50plus' && t.healthScore < 50) return false;
+    return true;
+  });
+}
+
+function render() {
+  const rows = getFiltered();
+  const tbody = document.getElementById('ticketsBody');
+  tbody.innerHTML = rows.map(t => `
+    <tr class="clickable ${t.id === state.selectedId ? 'selected' : ''}" data-id="${t.id}">
+      <td>${t.customer}</td>
+      <td>${t.subject}</td>
+      <td><span class="priority-pill priority-${t.priority}">${t.priority}</span></td>
+      <td class="num"><span class="health-pill ${healthClass(t.healthScore)}">${t.healthScore}</span>${isAtRisk(t.healthScore) ? '<span class="at-risk-pill">At risk</span>' : ''}</td>
+      <td><span class="status-pill">${t.status}</span></td>
+    </tr>
+  `).join('');
+
+  document.getElementById('resultCount').textContent =
+    `${rows.length} ticket${rows.length === 1 ? '' : 's'} of ${TICKETS.length}`;
+
+  tbody.querySelectorAll('tr.clickable').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const id = Number(tr.dataset.id);
+      state.selectedId = state.selectedId === id ? null : id;
+      render();
+      renderDetail();
+    });
+  });
+}
+
+function draftResponse(ticket) {
+  const firstName = ticket.customer.split(' ')[0];
+  const msg = ticket.message.toLowerCase();
+
+  const isBilling = /invoice|charge|payment|refund|billed|billing/.test(msg);
+  const isBug = /error|broken|not working|stopped working|blank|failing|fails/.test(msg);
+
+  let opening;
+  let body;
+  let close;
+
+  if (isBilling) {
+    opening = `Thanks for flagging this, ${firstName} — billing issues are something we want to resolve fast, not let sit in a queue.`;
+    body = `I'm pulling up the payment history on your account now to confirm exactly what was charged and when. If there's a duplicate or incorrect amount, we'll process a correction or refund as soon as it's confirmed — you won't need to chase it.`;
+    close = `I'll have a clear answer on the charge within one business day.`;
+  } else if (isBug) {
+    opening = `Sorry for the disruption, ${firstName} — that's not expected behavior and I want to get it fixed.`;
+    body = `I'm reproducing the issue on our end now to confirm whether it's isolated to your account or a broader bug. Once I know the root cause, I'll either ship a fix or give you a workaround to keep things moving in the meantime.`;
+    close = `I'll follow up with a status update as soon as I have one, even if it's just "still investigating."`;
+  } else {
+    opening = `Thanks for reaching out, ${firstName}.`;
+    body = `I've reviewed your message and want to make sure you get a complete answer rather than a quick guess — give me a bit to confirm the details on our end.`;
+    close = `I'll get back to you shortly with next steps.`;
+  }
+
+  const urgency = ticket.priority === 'High'
+    ? ` Given the impact here, I'm treating this as priority and moving it to the top of my queue right now.`
+    : '';
+
+  return `Hi ${firstName},\n\n${opening}${urgency} ${body}\n\n${close}\n\nBest,\nSupport Team`;
+}
+
+function renderDetail() {
+  const panel = document.getElementById('detailPanel');
+  const ticket = TICKETS.find(t => t.id === state.selectedId);
+
+  if (!ticket) {
+    panel.classList.add('empty');
+    panel.innerHTML = 'Select a ticket to view details and generate a response.';
+    return;
+  }
+
+  panel.classList.remove('empty');
+  panel.innerHTML = `
+    <div class="detail-header">
+      <div class="name">${ticket.customer}</div>
+      <div class="subject">${ticket.subject}</div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-row"><span class="label">Priority</span><span class="value">${ticket.priority}</span></div>
+      <div class="detail-row"><span class="label">Health score</span><span class="value">${ticket.healthScore}</span></div>
+      <div class="detail-row"><span class="label">Status</span><span class="value">${ticket.status}</span></div>
+      <div class="detail-message">
+        <span class="label">Customer message</span>
+        ${ticket.message}
+      </div>
+      <button class="generate-btn" id="genBtn">Generate response</button>
+      <div id="draftHolder"></div>
+    </div>
+  `;
+
+  document.getElementById('genBtn').addEventListener('click', () => {
+    const holder = document.getElementById('draftHolder');
+    holder.innerHTML = `
+      <div class="draft-output">
+        <span class="label">Generated response</span>
+        ${draftResponse(ticket)}
+      </div>
+    `;
+  });
+}
+
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    state.view = link.dataset.view;
+    renderApp();
+  });
+});
+
+document.querySelectorAll('.filter-chip[data-priority]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip[data-priority]').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state.priority = chip.dataset.priority;
+    render();
+  });
+});
+
+document.querySelectorAll('.filter-chip[data-health]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip[data-health]').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state.health = chip.dataset.health;
+    render();
+  });
+});
+
+renderApp();
+
+/* ---------------------------------------------------------------
+   Guided tour (Arcade-style spotlight + step caption)
+   --------------------------------------------------------------- */
+const TOOL_ICONS = {
+  hubspot: { name: 'HubSpot', domain: 'hubspot.com' },
+  make:    { name: 'Make.com', domain: 'make.com' },
+  claude:  { name: 'Claude', domain: 'anthropic.com' }
+};
+
+const TOUR_STEPS = [
+  {
+    target: () => document.querySelector('.app-topbar h1'),
+    text: 'This is RetainAI — every open support ticket lands here ranked by priority and account health, so the team can spot a customer headed toward churn before it happens, not after.',
+    before: () => { state.view = 'tickets'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="hubspot"]'),
+    tool: 'hubspot',
+    text: 'Account health and ticket history both come from HubSpot — the score you see next to each customer is the same signal your CRM already tracks, just surfaced where support actually works.'
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="make"]'),
+    tool: 'make',
+    text: 'Make.com is what fires the proactive check-in — the moment a health score crosses the risk line, it queues an outreach sequence automatically, before the customer has to open a ticket at all.'
+  },
+  {
+    target: () => document.querySelector('.filter-chip[data-priority="High"]'),
+    text: `Filter to High priority and watch the count change — ${TICKETS.length} tickets total, ${TICKETS.filter(t => t.priority === 'High').length} of them High priority. That's a real filter running against the real ticket list, not a static count.`,
+    action: () => document.querySelector('.filter-chip[data-priority="High"]').click()
+  },
+  {
+    target: () => document.querySelector('.filter-chip[data-priority="All"]'),
+    text: 'Back to All — now let\'s open a ticket and see the response drafting in action.',
+    action: () => {
+      document.querySelector('.filter-chip[data-priority="All"]').click();
+      state.selectedId = 1;
+      render();
+      renderDetail();
+    }
+  },
+  {
+    target: () => document.getElementById('detailPanel').querySelector('.generate-btn'),
+    tool: 'claude',
+    text: 'Marcus Hale\'s ticket is about a duplicate charge — a billing issue. Generate a response and Claude opens by naming that directly: "billing issues are something we want to resolve fast, not let sit in a queue."',
+    action: () => { const btn = document.getElementById('detailPanel').querySelector('.generate-btn'); if (btn) btn.click(); }
+  },
+  {
+    target: () => document.getElementById('detailPanel'),
+    text: 'Now compare that to a ticket about a broken feature.',
+    action: () => {
+      state.selectedId = 2;
+      render();
+      renderDetail();
+    }
+  },
+  {
+    target: () => document.getElementById('detailPanel').querySelector('.generate-btn'),
+    tool: 'claude',
+    text: 'Priya Nair\'s ticket is a broken CSV export — a bug, not a billing question. Generate a response and the wording shifts: "Sorry for the disruption... I\'m reproducing the issue on our end now to confirm whether it\'s isolated to your account or a broader bug." Same engine, different diagnosis, because it actually reads the message before writing.',
+    action: () => { const btn = document.getElementById('detailPanel').querySelector('.generate-btn'); if (btn) btn.click(); }
+  },
+  {
+    target: () => document.querySelector('.filter-chip[data-health="below50"]'),
+    text: `Here's the actual risk rule: a ticket or customer is "At risk" when health score is below ${state.riskThreshold} — that's it, one number, checked live. Priya Nair's ticket sits at 44, just 4 points above the line — raise the threshold to 45 in Settings and she flips to at risk immediately. Marcus Hale's refund follow-up ticket sits at 30, well inside the flagged zone already.`,
+    action: () => document.querySelector('.filter-chip[data-health="below50"]').click()
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="customers"]'),
+    text: 'Customers rolls tickets up by account. Marcus Hale has three tickets — scores of 38, 30, and 60 — averaging to 42.7. That average lands above the 40 threshold, so he is not flagged at risk even though one of his individual tickets clearly is. The rollup and the per-ticket flag can disagree, on purpose.',
+    action: () => { state.view = 'customers'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="settings"]'),
+    text: 'Settings controls that one number. Move the threshold and the summary line below it recalculates the at-risk ticket and customer counts immediately — nothing here is hardcoded.',
+    action: () => { state.view = 'settings'; renderApp(); }
+  }
+];
+
+let tourIndex = 0;
+let tourEls = null;
+
+function buildTourEls() {
+  if (tourEls) return tourEls;
+  const scrim = document.createElement('div');
+  scrim.className = 'tour-scrim';
+  const ring = document.createElement('div');
+  ring.className = 'tour-ring';
+  const card = document.createElement('div');
+  card.className = 'tour-card';
+  card.innerHTML = `
+    <div class="tour-step" id="tourStepLabel"></div>
+    <div class="tour-tool" id="tourTool" style="display:none;"></div>
+    <div class="tour-text" id="tourText"></div>
+    <div class="tour-controls">
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-nav-btns">
+        <button class="tour-skip" id="tourSkipBtn" type="button">Skip</button>
+        <button class="tour-next" id="tourNextBtn" type="button">Next</button>
+      </div>
+    </div>
+  `;
+  document.body.append(scrim, ring, card);
+  tourEls = { scrim, ring, card };
+  document.getElementById('tourSkipBtn').addEventListener('click', endTour);
+  document.getElementById('tourNextBtn').addEventListener('click', advanceTour);
+  return tourEls;
+}
+
+function positionTour(target) {
+  const { ring, card } = buildTourEls();
+  const r = target.getBoundingClientRect();
+  const pad = 6;
+  ring.style.top = (r.top - pad) + 'px';
+  ring.style.left = (r.left - pad) + 'px';
+  ring.style.width = (r.width + pad * 2) + 'px';
+  ring.style.height = (r.height + pad * 2) + 'px';
+
+  const cardWidth = 300;
+  let cardTop = r.bottom + 14;
+  let cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
+  if (cardTop + 140 > window.innerHeight) cardTop = Math.max(r.top - 160, 16);
+  card.style.top = cardTop + 'px';
+  card.style.left = cardLeft + 'px';
+}
+
+function runTourStep(index) {
+  const step = TOUR_STEPS[index];
+  if (!step) return endTour();
+  if (step.before) step.before();
+  if (step.action) step.action();
+
+  setTimeout(() => {
+    const target = step.target();
+    if (!target) return advanceTour();
+    target.scrollIntoView({ block: 'nearest' });
+    positionTour(target);
+
+    document.getElementById('tourStepLabel').textContent = `Step ${index + 1} of ${TOUR_STEPS.length}`;
+    const toolEl = document.getElementById('tourTool');
+    if (step.tool && TOOL_ICONS[step.tool]) {
+      const t = TOOL_ICONS[step.tool];
+      toolEl.style.display = 'flex';
+      toolEl.innerHTML = `<img src="https://www.google.com/s2/favicons?domain=${t.domain}&sz=32" alt=""> Powered by ${t.name}`;
+    } else {
+      toolEl.style.display = 'none';
+      toolEl.innerHTML = '';
+    }
+    document.getElementById('tourText').textContent = step.text;
+    document.getElementById('tourNextBtn').textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+    document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) =>
+      `<span class="tour-dot ${i === index ? 'current' : ''}"></span>`).join('');
+  });
+}
+
+function advanceTour() {
+  tourIndex += 1;
+  if (tourIndex >= TOUR_STEPS.length) return endTour();
+  runTourStep(tourIndex);
+}
+
+function startTour() {
+  tourIndex = 0;
+  buildTourEls();
+  tourEls.scrim.classList.add('active');
+  runTourStep(0);
+}
+
+function endTour() {
+  if (!tourEls) return;
+  tourEls.scrim.classList.remove('active');
+  tourEls.ring.style.width = '0px';
+  tourEls.ring.style.height = '0px';
+  tourEls.card.style.top = '-9999px';
+}
+
+document.getElementById('tourBtn').addEventListener('click', startTour);
+window.addEventListener('resize', () => {
+  if (tourEls && tourEls.scrim.classList.contains('active')) positionTour(TOUR_STEPS[tourIndex].target());
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KnowledgeBase — Internal SOP &amp; Knowledge Articles</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  :root {
+    --accent: #be185d;
+  }
+
+  .kb-layout {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    gap: 0;
+  }
+
+  .list-col {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .result-count {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .article-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .article-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    cursor: pointer;
+  }
+
+  .article-card:hover { border-color: var(--accent); }
+
+  .article-card.selected {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  }
+
+  .article-card .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .article-card .card-snippet {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .card-updated {
+    font-size: 11.5px;
+    color: var(--muted);
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .empty-state {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .reading-pane {
+    flex: 0 0 380px;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .reading-pane.empty {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  @media (max-width: 900px) {
+    .kb-layout { flex-direction: column; height: auto; }
+    .reading-pane {
+      flex: 0 0 auto;
+      width: 100%;
+      border-left: none;
+      border-top: 1px solid var(--border);
+      max-height: 70vh;
+    }
+  }
+
+  .reading-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .reading-header .title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .reading-header .updated {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .reading-body {
+    padding: 18px 20px;
+    flex: 1;
+  }
+
+  .thumb {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .thumb .play-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .thumb .thumb-label {
+    position: absolute;
+    bottom: 8px;
+    left: 10px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .reading-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .reading-text {
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  .template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+  }
+
+  .template-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+
+  .template-card .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .template-card .card-desc {
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+
+  .template-card .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .template-card .linked-count {
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+
+  .settings-panel {
+    max-width: 480px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .settings-row:last-child { border-bottom: none; }
+
+  .settings-row .settings-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .settings-row .settings-help {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .settings-select {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--bg);
+  }
+
+  .toggle-switch {
+    width: 38px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    position: relative;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+
+  .toggle-switch.on { background: var(--accent); border-color: var(--accent); }
+
+  .toggle-switch .knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-contrast);
+    transition: left 0.15s ease;
+  }
+
+  .toggle-switch.on .knob { left: 18px; }
+
+  /* ---------------------------------------------------------------
+     Guided tour (Arcade-style spotlight + step caption)
+     --------------------------------------------------------------- */
+  .tour-btn {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    flex: 0 0 auto;
+  }
+
+  .tour-btn:hover { opacity: 0.92; }
+
+  .tour-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 200;
+    display: none;
+  }
+
+  .tour-scrim.active { display: block; }
+
+  .tour-ring {
+    position: fixed;
+    z-index: 201;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 24px rgba(0,0,0,0.5);
+    pointer-events: none;
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  }
+
+  .tour-card {
+    position: fixed;
+    z-index: 202;
+    width: min(300px, calc(100vw - 32px));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    padding: 16px;
+    transition: top 0.25s ease, left 0.25s ease;
+  }
+
+  .tour-card .tour-step {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .tour-card .tour-tool {
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px 3px 6px;
+    margin-bottom: 10px;
+    width: fit-content;
+  }
+
+  .tour-card .tour-tool img {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+
+  .tour-card .tour-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .tour-card .tour-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tour-card .tour-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .tour-card .tour-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .tour-card .tour-dot.current { background: var(--accent); }
+
+  .tour-card .tour-nav-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .tour-card button.tour-next {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .tour-card button.tour-skip {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 6px 4px;
+  }
+
+  .tour-card button.tour-skip:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <a href="index.html" class="back-link"><span class="back-arrow">←</span> All apps</a>
+    <div class="logo"><span class="logo-dot"></span> KnowledgeBase</div>
+    <nav class="app-nav">
+      <a href="#" class="nav-link active" data-view="articles">Articles</a>
+      <a href="#" class="nav-link" data-view="templates">Templates</a>
+      <a href="#" class="nav-link" data-view="settings">Settings</a>
+    </nav>
+    <div class="app-sidebar-footer">
+      <div class="footer-label">Built on</div>
+      <div class="tool-badge-row">
+        <span class="badge-tool" data-tool="notion"><img src="https://www.google.com/s2/favicons?domain=notion.so&sz=32" alt=""> Notion</span>
+        <span class="badge-tool" data-tool="loom"><img src="https://www.google.com/s2/favicons?domain=loom.com&sz=32" alt=""> Loom</span>
+        <span class="badge-tool" data-tool="google"><img src="https://www.google.com/s2/favicons?domain=workspace.google.com&sz=32" alt=""> Google Workspace</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="app-main">
+    <div class="app-topbar">
+      <div>
+        <h1>Articles</h1>
+        <div class="topbar-sub">Internal SOPs and how-to guides, searchable across title and body text</div>
+      </div>
+      <button class="tour-btn" id="tourBtn" type="button">▶ Take the tour</button>
+    </div>
+
+    <div class="app-content">
+      <div class="kb-layout" id="view-articles">
+        <div class="list-col">
+          <div class="filter-bar" id="filterBar">
+            <input type="text" class="search-input" id="searchInput" placeholder="Search articles...">
+          </div>
+
+          <div class="result-count" id="resultCount"></div>
+
+          <div class="article-list" id="articleList"></div>
+        </div>
+
+        <aside class="reading-pane empty" id="readingPane">
+          Select an article to read it.
+        </aside>
+      </div>
+
+      <div id="view-templates" style="display:none;"></div>
+
+      <div id="view-settings" style="display:none;"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const ARTICLES = [
+  {
+    title: 'Client Onboarding Checklist',
+    tags: ['Onboarding', 'CRM', 'Process'],
+    body: 'Every new client engagement starts with a signed contract logged in HubSpot, followed by a kickoff call scheduled within 48 hours. During the call, confirm scope, primary contact, and preferred communication channel. After the call, create the client workspace in Notion using the standard template and share access with the client within one business day. Delays here are the single biggest driver of client dissatisfaction in the first two weeks.',
+    updated: '2026-05-02'
+  },
+  {
+    title: 'Weekly Status Report Format',
+    tags: ['Reporting', 'Communication'],
+    body: 'Status reports go out every Friday by 3pm regardless of progress made that week. The format is fixed: wins, blockers, next steps, and a single-line health indicator (green, yellow, red). Never send a report without a health indicator — clients use it to decide whether to escalate. Reports are drafted in Google Docs and shared via the client folder, not pasted into email.',
+    updated: '2026-04-18'
+  },
+  {
+    title: 'Invoice Dispute Resolution',
+    tags: ['Finance', 'Process'],
+    body: 'When a client disputes an invoice, do not issue a refund or credit before reviewing the original scope agreement. Log the dispute in the finance tracker the same day it is raised. Most disputes resolve within 24 hours once the original statement of work is shared back with the client for reference. If unresolved after three business days, escalate to the account owner.',
+    updated: '2026-03-22'
+  },
+  {
+    title: 'Loom Walkthrough Standards',
+    tags: ['Communication', 'Documentation'],
+    body: 'Every Loom recording sent to a client should be under five minutes and follow a strict structure: context (10 seconds), demonstration, and a closing line stating the next action needed from the client. Recordings longer than five minutes get skipped or watched at 2x speed, which causes details to be missed — keep it tight.',
+    updated: '2026-05-14'
+  },
+  {
+    title: 'Setting Up a New Make.com Scenario',
+    tags: ['Automation', 'Tools'],
+    body: 'New scenarios should always start from the shared template library, never a blank canvas, to keep naming conventions consistent across clients. Name the scenario using the format Client-Trigger-Action. Set the error handler on the first module before building out the rest of the flow — this single habit prevents the majority of silent failures we have seen in production.',
+    updated: '2026-02-11'
+  },
+  {
+    title: 'Notion Workspace Folder Structure',
+    tags: ['Documentation', 'Tools'],
+    body: 'Each client workspace in Notion follows the same three top-level sections: Active Work, Reference, and Archive. Reference holds anything that rarely changes, such as brand guidelines and login credentials stored via the secure vault link. Archive is for completed projects only — do not leave stale active-looking pages around, as clients browse this space directly and judge our organization by it.',
+    updated: '2026-01-29'
+  },
+  {
+    title: 'Handling a Missed Deadline',
+    tags: ['Process', 'Communication'],
+    body: 'If a deliverable is going to be late, the client must hear it from us before the deadline passes, not after. Send a short message explaining the delay, the new expected date, and what caused it, without over-explaining. Internally, log the miss in the project retro doc so patterns can be caught across multiple engagements.',
+    updated: '2026-04-03'
+  },
+  {
+    title: 'Google Workspace Access Provisioning',
+    tags: ['Tools', 'Onboarding'],
+    body: 'New team members get a Google Workspace account provisioned within one business day of their start date, using the standard naming convention firstname.lastname@. Shared drive access is granted based on role, not requested ad hoc — default to least privilege and expand only when a specific need is raised by a manager.',
+    updated: '2026-03-08'
+  },
+  {
+    title: 'CRM Data Hygiene Rules',
+    tags: ['CRM', 'Process'],
+    body: 'Every contact entered into HubSpot must have a source field populated; unattributed leads make reporting useless within a quarter. Duplicate detection runs weekly, but anyone manually adding a contact should search first to avoid creating one. Stale deals with no activity in 30 days get flagged automatically for manager review.',
+    updated: '2026-02-25'
+  },
+  {
+    title: 'Client Communication Tone Guide',
+    tags: ['Communication'],
+    body: 'Written communication with clients should be direct and warm, never apologetic by default. Avoid hedging language like "just wanted to check" or "sorry to bother you" — it undermines authority and trains clients to expect over-explanation. State the update, the ask, and the timeline in that order.',
+    updated: '2026-01-15'
+  },
+  {
+    title: 'Quarterly Business Review Prep',
+    tags: ['Reporting', 'Documentation'],
+    body: 'QBR decks are built from the same Google Slides template every quarter so clients can compare period over period without relearning a new layout. Pull metrics directly from the reporting dashboard rather than recalculating manually — manual recalculation is the leading cause of numbers not matching between the deck and what the client sees in their own dashboard.',
+    updated: '2026-05-20'
+  },
+  {
+    title: 'Escalation Path for Technical Outages',
+    tags: ['Process', 'Tools'],
+    body: 'Any automation failure affecting a live client workflow gets flagged in the team channel within fifteen minutes of detection, even before a root cause is known. Silence during an outage damages trust far more than the outage itself. Once resolved, a short incident note goes in the client folder explaining what happened and what was changed to prevent recurrence.',
+    updated: '2026-04-29'
+  },
+  {
+    title: 'Drafting Statements of Work',
+    tags: ['Finance', 'Documentation'],
+    body: 'Every SOW must list deliverables as concrete artifacts, never vague phrases like "ongoing support." Vague language in a statement of work is the root cause of nearly every scope disagreement we have had. Payment terms go on the first page, not buried at the end, so there is no ambiguity about timing.',
+    updated: '2026-03-17'
+  },
+  {
+    title: 'Recording and Sharing Loom Demos Internally',
+    tags: ['Communication', 'Automation'],
+    body: 'Internal Loom recordings used for training should be uploaded to the shared knowledge folder with a one-line description and a tag matching the tool or process shown. Untagged recordings are effectively unsearchable within a month and end up duplicated by someone who could not find the original.',
+    updated: '2026-02-04'
+  },
+  {
+    title: 'Handling Refund Requests',
+    tags: ['Finance', 'Process'],
+    body: 'Refund requests are reviewed against the delivered scope before any commitment is made to the client. Partial refunds are acceptable when partial work was delivered; full refunds require account-owner sign-off. Never promise a refund verbally on a call — confirm in writing after internal review so there is a clear record.',
+    updated: '2026-01-08'
+  },
+  {
+    title: 'Tagging Conventions in Notion',
+    tags: ['Documentation', 'Tools'],
+    body: 'Tags in Notion should describe the function of a page, not the project it belongs to — project association is already handled by the folder structure. Overlapping or redundant tags make filtering unreliable, which defeats the purpose of tagging in the first place. When in doubt, reuse an existing tag rather than creating a near-duplicate.',
+    updated: '2026-05-09'
+  },
+  {
+    title: 'Running an Effective Kickoff Call',
+    tags: ['Onboarding', 'Communication'],
+    body: 'Kickoff calls should run no longer than 30 minutes and follow a fixed agenda: introductions, goals, timeline, and communication preferences. Spending the full hour on a kickoff usually means the agenda was not prepared in advance. End every kickoff by confirming the next concrete date the client will hear from us.',
+    updated: '2026-04-11'
+  },
+  {
+    title: 'Automation Error Handling Standards',
+    tags: ['Automation', 'Tools'],
+    body: 'Every automated workflow needs a defined fallback for when an upstream API fails, even if that fallback is simply a notification to a human. Silent failures erode client trust faster than visible ones, because the client discovers the gap before we do. Build the error path before considering a scenario production-ready.',
+    updated: '2026-03-30'
+  },
+  {
+    title: 'Account Health Scoring Methodology',
+    tags: ['Reporting', 'CRM'],
+    body: 'Account health combines three inputs: response time to our outreach, frequency of scope changes, and invoice payment timeliness. A client can look financially healthy on revenue alone while showing early churn signals in the other two inputs, so all three are reviewed together monthly, never in isolation.',
+    updated: '2026-02-19'
+  },
+  {
+    title: 'Style Guide for Client-Facing Documents',
+    tags: ['Documentation', 'Communication'],
+    body: 'All client-facing documents use the standard letterhead template, sentence case headers, and no more than two fonts per document. Internal jargon and tool names like "Make.com scenario" should be translated into plain outcomes for the client unless they have explicitly asked for the technical detail.',
+    updated: '2026-01-22'
+  }
+];
+
+const ALL_TAGS = [...new Set(ARTICLES.flatMap(a => a.tags))].sort();
+
+const TEMPLATES = [
+  { name: 'New Client SOP', category: 'Onboarding', desc: 'Standard checklist for onboarding a new client engagement from contract to kickoff.' },
+  { name: 'Process Change Log', category: 'Process', desc: 'Structured log entry for documenting a change to an internal process and why it was made.' },
+  { name: 'Tool Setup Guide', category: 'Tools', desc: 'Step-by-step walkthrough format for configuring a new tool or integration.' },
+  { name: 'Client Communication Template', category: 'Communication', desc: 'Reusable structure for status updates, delay notices, and check-ins with clients.' },
+  { name: 'Finance Review Checklist', category: 'Finance', desc: 'Checklist for reviewing disputes, refunds, and statements of work before sign-off.' }
+];
+
+const state = {
+  view: 'articles',
+  search: '',
+  activeTags: new Set(),
+  selectedTitle: null,
+  showUpdatedDate: true,
+  sortOrder: 'newest'
+};
+
+function getFiltered() {
+  const q = state.search.toLowerCase();
+  const rows = ARTICLES.filter(a => {
+    if (q && !a.title.toLowerCase().includes(q) && !a.body.toLowerCase().includes(q)) return false;
+    if (state.activeTags.size > 0) {
+      const hasAll = [...state.activeTags].every(t => a.tags.includes(t));
+      if (!hasAll) return false;
+    }
+    return true;
+  });
+
+  if (state.sortOrder === 'title') {
+    rows.sort((a, b) => a.title.localeCompare(b.title));
+  } else {
+    rows.sort((a, b) => new Date(b.updated) - new Date(a.updated));
+  }
+
+  return rows;
+}
+
+function snippet(article) {
+  // If search term only appears in body, show the body excerpt around the match for context
+  const q = state.search.toLowerCase();
+  if (q && !article.title.toLowerCase().includes(q) && article.body.toLowerCase().includes(q)) {
+    const idx = article.body.toLowerCase().indexOf(q);
+    const start = Math.max(0, idx - 40);
+    return (start > 0 ? '…' : '') + article.body.slice(start, start + 140) + '…';
+  }
+  return article.body.slice(0, 140) + (article.body.length > 140 ? '…' : '');
+}
+
+function renderFilterBar() {
+  const bar = document.getElementById('filterBar');
+  const chipsHtml = ALL_TAGS.map(tag => `
+    <button class="filter-chip ${state.activeTags.has(tag) ? 'active' : ''}" data-tag="${tag}">${tag}</button>
+  `).join('');
+  bar.innerHTML = chipsHtml + '<input type="text" class="search-input" id="searchInput" placeholder="Search articles..." value="' + state.search.replace(/"/g, '&quot;') + '">';
+
+  bar.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const tag = chip.dataset.tag;
+      if (state.activeTags.has(tag)) state.activeTags.delete(tag);
+      else state.activeTags.add(tag);
+      render();
+    });
+  });
+
+  const input = document.getElementById('searchInput');
+  input.addEventListener('input', (e) => {
+    state.search = e.target.value;
+    render(true);
+  });
+  // preserve focus/cursor when re-rendering due to typing
+  if (state._focusSearch) {
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+    state._focusSearch = false;
+  }
+}
+
+function render(keepFocus) {
+  if (keepFocus) state._focusSearch = true;
+  renderFilterBar();
+
+  const rows = getFiltered();
+  document.getElementById('resultCount').textContent =
+    `${rows.length} article${rows.length === 1 ? '' : 's'}`;
+
+  const list = document.getElementById('articleList');
+  if (rows.length === 0) {
+    list.innerHTML = '<div class="empty-state">No articles match your search and filters.</div>';
+  } else {
+    list.innerHTML = rows.map(a => `
+      <div class="article-card ${a.title === state.selectedTitle ? 'selected' : ''}" data-title="${a.title.replace(/"/g, '&quot;')}">
+        <div class="card-title">${a.title}</div>
+        <div class="card-snippet">${snippet(a)}</div>
+        <div class="card-meta-row">
+          <div class="card-tags">${a.tags.map(t => `<span class="badge">${t}</span>`).join('')}</div>
+          ${state.showUpdatedDate ? `<div class="card-updated">Updated ${a.updated}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('.article-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const title = card.dataset.title;
+        state.selectedTitle = state.selectedTitle === title ? null : title;
+        render();
+        renderReadingPane();
+      });
+    });
+  }
+}
+
+function renderReadingPane() {
+  const pane = document.getElementById('readingPane');
+  const article = ARTICLES.find(a => a.title === state.selectedTitle);
+
+  if (!article) {
+    pane.classList.add('empty');
+    pane.innerHTML = 'Select an article to read it.';
+    return;
+  }
+
+  pane.classList.remove('empty');
+  pane.innerHTML = `
+    <div class="reading-header">
+      <div class="title">${article.title}</div>
+      ${state.showUpdatedDate ? `<div class="updated">Last updated ${article.updated}</div>` : ''}
+    </div>
+    <div class="reading-body">
+      <div class="thumb">
+        <div class="play-icon">&#9658;</div>
+        <div class="thumb-label">2-min walkthrough</div>
+      </div>
+      <div class="reading-tags">${article.tags.map(t => `<span class="badge">${t}</span>`).join('')}</div>
+      <div class="reading-text">${article.body}</div>
+    </div>
+  `;
+}
+
+function renderTemplates() {
+  const el = document.getElementById('view-templates');
+  el.innerHTML = `
+    <div class="template-grid">
+      ${TEMPLATES.map(t => {
+        const linked = ARTICLES.filter(a => a.tags.includes(t.category)).length;
+        return `
+          <div class="template-card">
+            <div class="card-title">${t.name}</div>
+            <div class="card-desc">${t.desc}</div>
+            <div class="card-footer">
+              <span class="badge">${t.category}</span>
+              <span class="linked-count">${linked} linked article${linked === 1 ? '' : 's'}</span>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderSettings() {
+  const el = document.getElementById('view-settings');
+  el.innerHTML = `
+    <div class="settings-panel">
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Show last-updated date on cards</div>
+          <div class="settings-help">Displays the update date on article cards and in the reading pane.</div>
+        </div>
+        <div class="toggle-switch ${state.showUpdatedDate ? 'on' : ''}" id="toggleUpdated"><div class="knob"></div></div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Default sort</div>
+          <div class="settings-help">Controls the order articles appear in on the Articles view.</div>
+        </div>
+        <select class="settings-select" id="sortSelect">
+          <option value="newest" ${state.sortOrder === 'newest' ? 'selected' : ''}>Newest first</option>
+          <option value="title" ${state.sortOrder === 'title' ? 'selected' : ''}>Title A-Z</option>
+        </select>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('toggleUpdated').addEventListener('click', () => {
+    state.showUpdatedDate = !state.showUpdatedDate;
+    renderApp();
+  });
+
+  document.getElementById('sortSelect').addEventListener('change', (e) => {
+    state.sortOrder = e.target.value;
+    renderApp();
+  });
+}
+
+function renderApp() {
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.toggle('active', link.dataset.view === state.view);
+  });
+
+  document.getElementById('view-articles').style.display = state.view === 'articles' ? 'flex' : 'none';
+  document.getElementById('view-templates').style.display = state.view === 'templates' ? 'block' : 'none';
+  document.getElementById('view-settings').style.display = state.view === 'settings' ? 'block' : 'none';
+
+  const titleEl = document.querySelector('.app-topbar h1');
+  const subEl = document.querySelector('.app-topbar .topbar-sub');
+  if (state.view === 'articles') {
+    titleEl.textContent = 'Articles';
+    subEl.textContent = 'Internal SOPs and how-to guides, searchable across title and body text';
+    render();
+    renderReadingPane();
+  } else if (state.view === 'templates') {
+    titleEl.textContent = 'Templates';
+    subEl.textContent = 'Reusable document templates and how many existing articles match each category';
+    renderTemplates();
+  } else if (state.view === 'settings') {
+    titleEl.textContent = 'Settings';
+    subEl.textContent = 'Display and sorting preferences for the knowledge base';
+    renderSettings();
+  }
+}
+
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    state.view = link.dataset.view;
+    renderApp();
+  });
+});
+
+renderApp();
+
+/* ---------------------------------------------------------------
+   Guided tour (Arcade-style spotlight + step caption)
+   --------------------------------------------------------------- */
+const TOOL_ICONS = {
+  notion: { name: 'Notion', domain: 'notion.so' },
+  loom:   { name: 'Loom', domain: 'loom.com' },
+  google: { name: 'Google Workspace', domain: 'workspace.google.com' }
+};
+
+const TOUR_STEPS = [
+  {
+    target: () => document.querySelector('.app-topbar h1'),
+    text: 'This is KnowledgeBase — a searchable internal wiki for SOPs and how-to guides, not just a glorified list of links.',
+    before: () => { state.view = 'articles'; state.search = ''; state.activeTags = new Set(); state.selectedTitle = null; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="notion"]'),
+    tool: 'notion',
+    text: 'Every article here is a real Notion page — this view is a searchable front door to the same documents your team already writes in, not a separate copy that goes stale.'
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="loom"]'),
+    tool: 'loom',
+    text: 'Longer or trickier SOPs get a quick Loom walkthrough attached, so a written step never has to carry the whole explanation on its own.'
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="google"]'),
+    tool: 'google',
+    text: 'Google Workspace stays in sync alongside it — calendar invites, shared docs, anything that already lives there links straight back into the relevant article instead of being duplicated.'
+  },
+  {
+    target: () => document.getElementById('searchInput'),
+    text: 'Search checks the full article body, not just the title. Watch what happens when we search "letterhead" — that word only appears inside one article\'s text.',
+    action: () => {
+      const input = document.getElementById('searchInput');
+      input.value = 'letterhead';
+      state.search = 'letterhead';
+      render();
+    }
+  },
+  {
+    target: () => document.getElementById('resultCount'),
+    text: 'One result: "Style Guide for Client-Facing Documents." Its title never mentions letterhead — the match came from the body text, and the snippet pulls the surrounding sentence so you can see why it matched.'
+  },
+  {
+    target: () => document.querySelector('.filter-chip[data-tag="Process"]'),
+    text: 'Tag filters use AND logic, not OR — selecting more than one tag narrows the list, it doesn\'t widen it. Watch: selecting "Process" alone shows 6 articles.',
+    before: () => { state.search = ''; state.activeTags = new Set(); renderApp(); },
+    action: () => {
+      const chip = document.querySelector('.filter-chip[data-tag="Process"]');
+      if (chip) chip.click();
+    }
+  },
+  {
+    target: () => document.querySelector('.filter-chip[data-tag="Tools"]'),
+    text: 'Now add "Tools" on top of "Process." If this were OR logic, the count would jump to 11 — the combined total of both tags. Because it\'s AND, it drops to 1: only "Escalation Path for Technical Outages" carries both tags at once.',
+    action: () => {
+      const chip = document.querySelector('.filter-chip[data-tag="Tools"]');
+      if (chip) chip.click();
+    }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="templates"]'),
+    text: 'Templates is next. Each template shows a live count of how many articles share its category — not a number someone typed in.',
+    before: () => { state.search = ''; state.activeTags = new Set(); renderApp(); },
+    action: () => { state.view = 'templates'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('#view-templates .template-card'),
+    text: 'Take "New Client SOP," tagged Onboarding — it shows 3 linked articles, because exactly 3 articles in the library carry the Onboarding tag. Change an article\'s tags and this number updates with it.'
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="settings"]'),
+    text: 'Last stop, Settings — this controls how articles are sorted and whether update dates show on cards.',
+    action: () => { state.view = 'settings'; renderApp(); }
+  },
+  {
+    target: () => document.getElementById('sortSelect'),
+    text: 'Default sort is "Newest first," ordering by the updated date. Switch it to "Title A-Z" and the Articles view re-sorts immediately — same data, different order, no page reload.'
+  }
+];
+
+let tourIndex = 0;
+let tourEls = null;
+
+function buildTourEls() {
+  if (tourEls) return tourEls;
+  const scrim = document.createElement('div');
+  scrim.className = 'tour-scrim';
+  const ring = document.createElement('div');
+  ring.className = 'tour-ring';
+  const card = document.createElement('div');
+  card.className = 'tour-card';
+  card.innerHTML = `
+    <div class="tour-step" id="tourStepLabel"></div>
+    <div class="tour-tool" id="tourTool" style="display:none;"></div>
+    <div class="tour-text" id="tourText"></div>
+    <div class="tour-controls">
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-nav-btns">
+        <button class="tour-skip" id="tourSkipBtn" type="button">Skip</button>
+        <button class="tour-next" id="tourNextBtn" type="button">Next</button>
+      </div>
+    </div>
+  `;
+  document.body.append(scrim, ring, card);
+  tourEls = { scrim, ring, card };
+  document.getElementById('tourSkipBtn').addEventListener('click', endTour);
+  document.getElementById('tourNextBtn').addEventListener('click', advanceTour);
+  return tourEls;
+}
+
+function positionTour(target) {
+  const { ring, card } = buildTourEls();
+  const r = target.getBoundingClientRect();
+  const pad = 6;
+  ring.style.top = (r.top - pad) + 'px';
+  ring.style.left = (r.left - pad) + 'px';
+  ring.style.width = (r.width + pad * 2) + 'px';
+  ring.style.height = (r.height + pad * 2) + 'px';
+
+  const cardWidth = 300;
+  let cardTop = r.bottom + 14;
+  let cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
+  if (cardTop + 140 > window.innerHeight) cardTop = Math.max(r.top - 160, 16);
+  card.style.top = cardTop + 'px';
+  card.style.left = cardLeft + 'px';
+}
+
+function runTourStep(index) {
+  const step = TOUR_STEPS[index];
+  if (!step) return endTour();
+  if (step.before) step.before();
+  if (step.action) step.action();
+
+  setTimeout(() => {
+    const target = step.target();
+    if (!target) return advanceTour();
+    target.scrollIntoView({ block: 'nearest' });
+    positionTour(target);
+
+    document.getElementById('tourStepLabel').textContent = `Step ${index + 1} of ${TOUR_STEPS.length}`;
+    const toolEl = document.getElementById('tourTool');
+    if (step.tool && TOOL_ICONS[step.tool]) {
+      const t = TOOL_ICONS[step.tool];
+      toolEl.style.display = 'flex';
+      toolEl.innerHTML = `<img src="https://www.google.com/s2/favicons?domain=${t.domain}&sz=32" alt=""> Powered by ${t.name}`;
+    } else {
+      toolEl.style.display = 'none';
+      toolEl.innerHTML = '';
+    }
+    document.getElementById('tourText').textContent = step.text;
+    document.getElementById('tourNextBtn').textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+    document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) =>
+      `<span class="tour-dot ${i === index ? 'current' : ''}"></span>`).join('');
+  });
+}
+
+function advanceTour() {
+  tourIndex += 1;
+  if (tourIndex >= TOUR_STEPS.length) return endTour();
+  runTourStep(tourIndex);
+}
+
+function startTour() {
+  tourIndex = 0;
+  buildTourEls();
+  tourEls.scrim.classList.add('active');
+  runTourStep(0);
+}
+
+function endTour() {
+  if (!tourEls) return;
+  tourEls.scrim.classList.remove('active');
+  tourEls.ring.style.width = '0px';
+  tourEls.ring.style.height = '0px';
+  tourEls.card.style.top = '-9999px';
+}
+
+document.getElementById('tourBtn').addEventListener('click', startTour);
+window.addEventListener('resize', () => {
+  if (tourEls && tourEls.scrim.classList.contains('active')) positionTour(TOUR_STEPS[tourIndex].target());
+});
+</script>
+
+</body>
+</html>

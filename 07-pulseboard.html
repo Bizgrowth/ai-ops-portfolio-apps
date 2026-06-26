@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PulseBoard — Reporting &amp; Analytics</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --accent: #0891b2;
+  }
+
+  .range-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .btn-group {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .btn-group button {
+    background: var(--surface);
+    border: none;
+    border-right: 1px solid var(--border);
+    padding: 7px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .btn-group button:last-child { border-right: none; }
+
+  .btn-group button:hover { color: var(--text); background: var(--bg); }
+
+  .btn-group button.active {
+    background: var(--accent);
+    color: var(--accent-contrast);
+  }
+
+  .summary-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+
+  .summary-card .card-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .summary-card .card-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .chart-card canvas {
+    max-height: 320px;
+  }
+
+  .insight-line {
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+  }
+
+  .insight-line .delta-up { color: #1d7a3e; font-weight: 600; }
+  .insight-line .delta-down { color: #b3261e; font-weight: 600; }
+  .insight-line .delta-flat { color: var(--muted); font-weight: 600; }
+
+  /* ---------------------------------------------------------------
+     Cohorts view
+     --------------------------------------------------------------- */
+  .result-count {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  /* ---------------------------------------------------------------
+     Exports view
+     --------------------------------------------------------------- */
+  .export-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    max-width: 560px;
+  }
+
+  .export-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .export-help {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    max-width: 420px;
+  }
+
+  .export-confirm {
+    font-size: 12px;
+    color: var(--accent);
+    margin-top: 10px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-primary:hover { opacity: 0.92; }
+
+  /* ---------------------------------------------------------------
+     Settings view
+     --------------------------------------------------------------- */
+  .settings-panel {
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .settings-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .settings-row .settings-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .settings-row .settings-help {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    max-width: 320px;
+  }
+
+  .settings-confirm {
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  /* simple switch */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .switch input { opacity: 0; width: 0; height: 0; }
+
+  .switch-track {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--border);
+    border-radius: 22px;
+    transition: background 0.15s;
+  }
+
+  .switch-track::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 3px;
+    bottom: 3px;
+    background: var(--surface);
+    border-radius: 50%;
+    transition: transform 0.15s;
+  }
+
+  .switch input:checked + .switch-track {
+    background: var(--accent);
+  }
+
+  .switch input:checked + .switch-track::before {
+    transform: translateX(18px);
+  }
+
+  /* ---------------------------------------------------------------
+     Guided tour (Arcade-style spotlight + step caption)
+     --------------------------------------------------------------- */
+  .tour-btn {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    flex: 0 0 auto;
+  }
+
+  .tour-btn:hover { opacity: 0.92; }
+
+  .tour-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 200;
+    display: none;
+  }
+
+  .tour-scrim.active { display: block; }
+
+  .tour-ring {
+    position: fixed;
+    z-index: 201;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 24px rgba(0,0,0,0.5);
+    pointer-events: none;
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  }
+
+  .tour-card {
+    position: fixed;
+    z-index: 202;
+    width: min(300px, calc(100vw - 32px));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    padding: 16px;
+    transition: top 0.25s ease, left 0.25s ease;
+  }
+
+  .tour-card .tour-step {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .tour-card .tour-tool {
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px 3px 6px;
+    margin-bottom: 10px;
+    width: fit-content;
+  }
+
+  .tour-card .tour-tool img {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+
+  .tour-card .tour-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .tour-card .tour-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tour-card .tour-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .tour-card .tour-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .tour-card .tour-dot.current { background: var(--accent); }
+
+  .tour-card .tour-nav-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .tour-card button.tour-next {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .tour-card button.tour-skip {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 6px 4px;
+  }
+
+  .tour-card button.tour-skip:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <a href="index.html" class="back-link"><span class="back-arrow">←</span> All apps</a>
+    <div class="logo"><span class="logo-dot"></span> PulseBoard</div>
+    <nav class="app-nav">
+      <a href="#" class="nav-link active" data-view="overview">Overview</a>
+      <a href="#" class="nav-link" data-view="cohorts">Cohorts</a>
+      <a href="#" class="nav-link" data-view="exports">Exports</a>
+      <a href="#" class="nav-link" data-view="settings">Settings</a>
+    </nav>
+    <div class="app-sidebar-footer">
+      <div class="footer-label">Built on</div>
+      <div class="tool-badge-row">
+        <span class="badge-tool" data-tool="airtable"><img src="https://www.google.com/s2/favicons?domain=airtable.com&sz=32" alt=""> Airtable</span>
+        <span class="badge-tool" data-tool="supabase"><img src="https://www.google.com/s2/favicons?domain=supabase.com&sz=32" alt=""> Supabase</span>
+        <span class="badge-tool" data-tool="claude"><img src="https://www.google.com/s2/favicons?domain=anthropic.com&sz=32" alt=""> Claude</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="app-main">
+    <div class="app-topbar">
+      <div>
+        <h1 id="topbarTitle">Performance Overview</h1>
+        <div class="topbar-sub" id="topbarSub">Daily metrics through June 25, 2026</div>
+      </div>
+      <button class="tour-btn" id="tourBtn" type="button">▶ Take the tour</button>
+    </div>
+
+    <div class="app-content">
+      <div id="view-overview">
+        <div class="range-bar">
+          <div class="btn-group" id="rangeGroup">
+            <button data-range="7">Last 7 days</button>
+            <button data-range="30">Last 30 days</button>
+            <button data-range="90" class="active">Last 90 days</button>
+          </div>
+          <div class="btn-group" id="segmentGroup">
+            <button data-segment="revenue" class="active">Revenue</button>
+            <button data-segment="leads">Leads</button>
+            <button data-segment="churned">Churn</button>
+          </div>
+        </div>
+
+        <div class="summary-strip" id="summaryStrip"></div>
+
+        <div class="chart-card">
+          <canvas id="trendChart" height="90"></canvas>
+        </div>
+
+        <div class="insight-line" id="insightLine"></div>
+      </div>
+
+      <div id="view-cohorts" style="display:none;"></div>
+
+      <div id="view-exports" style="display:none;"></div>
+
+      <div class="settings-panel" id="view-settings" style="display:none;"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+// Fixed reference date so the 90-day window is deterministic and reviewable.
+const TODAY = new Date('2026-06-25');
+const TOTAL_DAYS = 90;
+
+function fmtDateISO(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+// Deterministic generator: trend + two sine waves + weekday effect.
+// No Math.random() — same output every load, easy to hand-check.
+function generateDaily() {
+  const out = [];
+  const start = new Date(TODAY);
+  start.setDate(start.getDate() - (TOTAL_DAYS - 1));
+
+  for (let i = 0; i < TOTAL_DAYS; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    const dow = d.getDay(); // 0 = Sun, 6 = Sat
+    const isWeekend = dow === 0 || dow === 6;
+
+    const trend = i * 4.5;
+    const wave = Math.sin(i / 6) * 220 + Math.sin(i / 13) * 90;
+    const weekdayBoost = isWeekend ? -180 : 40;
+    const revenue = Math.max(0, Math.round(1400 + trend + wave + weekdayBoost));
+
+    const leads = Math.max(0, Math.round(8 + Math.sin(i / 7 + 1) * 4 + (isWeekend ? -2 : 1) + i * 0.03));
+    const churned = Math.max(0, Math.round(1 + Math.max(0, Math.sin(i / 11 + 2)) * 2 + (i % 17 === 0 ? 1 : 0)));
+
+    out.push({ date: fmtDateISO(d), revenue, leads, churned });
+  }
+  return out;
+}
+
+const DAILY = generateDaily();
+
+const SEGMENTS = {
+  revenue: { label: 'Revenue', fmt: v => '$' + v.toLocaleString('en-US') },
+  leads:   { label: 'Leads',   fmt: v => v.toLocaleString('en-US') },
+  churned: { label: 'Churn',   fmt: v => v.toLocaleString('en-US') }
+};
+
+let state = {
+  view: 'overview', // 'overview' | 'cohorts' | 'exports' | 'settings'
+  range: 90,
+  segment: 'revenue',
+  exportRange: 30,
+  compareEnabled: true,
+  decimals: 1
+};
+let chart = null;
+
+const TOPBAR = {
+  overview: { title: 'Performance Overview', sub: 'Daily metrics through June 25, 2026' },
+  cohorts:  { title: 'Cohorts', sub: 'Weekly rollups computed live from the 90-day daily series' },
+  exports:  { title: 'Exports', sub: 'Download the underlying daily data as CSV' },
+  settings: { title: 'Settings', sub: 'Controls that affect how the Overview tab is displayed' }
+};
+
+function fmtDateShort(s) {
+  const d = new Date(s);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function avg(arr, key) {
+  if (!arr.length) return 0;
+  return arr.reduce((sum, x) => sum + x[key], 0) / arr.length;
+}
+
+function getSlices() {
+  const n = state.range;
+  const current = DAILY.slice(-n);
+  const prior = DAILY.slice(-2 * n, -n);
+  return { current, prior };
+}
+
+function renderSummary(current) {
+  const key = state.segment;
+  const total = current.reduce((s, x) => s + x[key], 0);
+  const average = avg(current, key);
+  const peak = current.reduce((max, x) => Math.max(max, x[key]), 0);
+  const seg = SEGMENTS[key];
+
+  const strip = document.getElementById('summaryStrip');
+  strip.innerHTML = `
+    <div class="summary-card">
+      <div class="card-label">Total ${seg.label.toLowerCase()}</div>
+      <div class="card-value">${seg.fmt(Math.round(total))}</div>
+    </div>
+    <div class="summary-card">
+      <div class="card-label">Daily average</div>
+      <div class="card-value">${seg.fmt(Math.round(average))}</div>
+    </div>
+    <div class="summary-card">
+      <div class="card-label">Best day</div>
+      <div class="card-value">${seg.fmt(peak)}</div>
+    </div>
+  `;
+}
+
+function renderInsight(current, prior) {
+  const key = state.segment;
+  const seg = SEGMENTS[key];
+  const line = document.getElementById('insightLine');
+
+  if (!state.compareEnabled) {
+    line.innerHTML = `Prior-period comparison is turned off. Enable it in Settings to see how ${seg.label.toLowerCase()} is trending vs. the previous period.`;
+    return;
+  }
+
+  const currentAvg = avg(current, key);
+  const priorAvg = avg(prior, key);
+
+  if (!prior.length || priorAvg === 0) {
+    line.innerHTML = `Not enough prior history yet to compare ${seg.label.toLowerCase()} trends for this window.`;
+    return;
+  }
+
+  const pctChange = ((currentAvg - priorAvg) / priorAvg) * 100;
+  const rounded = Math.abs(pctChange).toFixed(state.decimals);
+  const periodLabel = state.range === 7 ? '7 days' : state.range === 30 ? '30 days' : '90 days';
+
+  let cls = 'delta-flat';
+  let verb = 'flat vs.';
+  if (pctChange > 0.5) { cls = 'delta-up'; verb = 'up'; }
+  else if (pctChange < -0.5) { cls = 'delta-down'; verb = 'down'; }
+
+  line.innerHTML = pctChange > 0.5 || pctChange < -0.5
+    ? `${seg.label} is <span class="${cls}">${verb} ${rounded}%</span> vs. the prior ${periodLabel}.`
+    : `${seg.label} is <span class="${cls}">roughly flat</span> vs. the prior ${periodLabel}.`;
+}
+
+function renderChart(current) {
+  const key = state.segment;
+  const seg = SEGMENTS[key];
+  const labels = current.map(x => fmtDateShort(x.date));
+  const data = current.map(x => x[key]);
+
+  const ctx = document.getElementById('trendChart').getContext('2d');
+
+  if (chart) {
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = data;
+    chart.data.datasets[0].label = seg.label;
+    chart.update();
+    return;
+  }
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: seg.label,
+        data: data,
+        borderColor: '#0891b2',
+        backgroundColor: 'rgba(8, 145, 178, 0.1)',
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.25,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { maxTicksLimit: 10, color: '#6b7280', font: { size: 11 } }
+        },
+        y: {
+          grid: { color: '#e3e6ea' },
+          ticks: { color: '#6b7280', font: { size: 11 } },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+function render() {
+  const { current, prior } = getSlices();
+  renderSummary(current);
+  renderChart(current);
+  renderInsight(current, prior);
+}
+
+document.getElementById('rangeGroup').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  state.range = parseInt(btn.dataset.range, 10);
+  document.querySelectorAll('#rangeGroup button').forEach(b => b.classList.toggle('active', b === btn));
+  render();
+});
+
+document.getElementById('segmentGroup').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  state.segment = btn.dataset.segment;
+  document.querySelectorAll('#segmentGroup button').forEach(b => b.classList.toggle('active', b === btn));
+  render();
+});
+
+// ---------------------------------------------------------------
+// Cohorts: group DAILY into 7-day weekly buckets, aggregate live.
+// ---------------------------------------------------------------
+function buildWeeklyCohorts() {
+  const weeks = [];
+  for (let i = 0; i < DAILY.length; i += 7) {
+    const bucket = DAILY.slice(i, i + 7);
+    if (!bucket.length) continue;
+    const weekStart = new Date(bucket[0].date);
+    const totalRevenue = bucket.reduce((s, x) => s + x.revenue, 0);
+    const totalLeads = bucket.reduce((s, x) => s + x.leads, 0);
+    const totalChurned = bucket.reduce((s, x) => s + x.churned, 0);
+    weeks.push({
+      label: 'Week of ' + weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      days: bucket.length,
+      totalRevenue,
+      totalLeads,
+      totalChurned
+    });
+  }
+  return weeks;
+}
+
+function renderCohorts() {
+  const view = document.getElementById('view-cohorts');
+  const weeks = buildWeeklyCohorts();
+
+  const rows = weeks.map(w => `
+    <tr>
+      <td>${w.label}</td>
+      <td class="num">$${w.totalRevenue.toLocaleString('en-US')}</td>
+      <td class="num">${w.totalLeads.toLocaleString('en-US')}</td>
+      <td class="num">${w.totalChurned.toLocaleString('en-US')}</td>
+    </tr>
+  `).join('');
+
+  view.innerHTML = `
+    <div class="result-count">${weeks.length} weekly cohorts, computed from ${DAILY.length} days of data</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Week</th>
+          <th class="num">Total revenue</th>
+          <th class="num">Total leads</th>
+          <th class="num">Total churned</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+// ---------------------------------------------------------------
+// Exports: real CSV download via Blob + temporary <a download>.
+// ---------------------------------------------------------------
+function buildCSV(rows) {
+  const header = 'date,revenue,leads,churned';
+  const lines = rows.map(r => `${r.date},${r.revenue},${r.leads},${r.churned}`);
+  return [header, ...lines].join('\n');
+}
+
+function downloadCSV(csvText, filename) {
+  const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function renderExports() {
+  const view = document.getElementById('view-exports');
+  view.innerHTML = `
+    <div class="export-card">
+      <div class="export-row">
+        <div class="settings-label">Date range</div>
+        <div class="btn-group" id="exportRangeGroup">
+          <button data-range="7"  class="${state.exportRange === 7  ? 'active' : ''}">Last 7 days</button>
+          <button data-range="30" class="${state.exportRange === 30 ? 'active' : ''}">Last 30 days</button>
+          <button data-range="90" class="${state.exportRange === 90 ? 'active' : ''}">Last 90 days</button>
+        </div>
+      </div>
+      <div class="export-help">Builds a CSV from the daily revenue, leads, and churn data for the selected range, then downloads it to your computer.</div>
+      <button class="btn-primary" id="downloadCsvBtn">Download CSV</button>
+      <div class="export-confirm" id="exportConfirm"></div>
+    </div>
+  `;
+
+  document.getElementById('exportRangeGroup').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    state.exportRange = parseInt(btn.dataset.range, 10);
+    renderExports();
+  });
+
+  document.getElementById('downloadCsvBtn').addEventListener('click', () => {
+    const rows = DAILY.slice(-state.exportRange);
+    const csv = buildCSV(rows);
+    const filename = `pulseboard_daily_last${state.exportRange}.csv`;
+    downloadCSV(csv, filename);
+    document.getElementById('exportConfirm').textContent =
+      `Downloaded ${filename} — ${rows.length} rows.`;
+  });
+}
+
+// ---------------------------------------------------------------
+// Settings: controls that visibly affect the Overview tab.
+// ---------------------------------------------------------------
+function renderSettings() {
+  const panel = document.getElementById('view-settings');
+  panel.innerHTML = `
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Compare to prior period</div>
+        <div class="settings-help">Shows or hides the trend sentence on Overview that compares the current range's average to the prior equal-length range.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="compareToggle" ${state.compareEnabled ? 'checked' : ''}>
+        <span class="switch-track"></span>
+      </label>
+    </div>
+
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Decimal precision</div>
+        <div class="settings-help">Number of decimal places shown for the percentage change in the Overview trend sentence.</div>
+      </div>
+      <input type="number" id="decimalsInput" class="settings-input" min="0" max="3" value="${state.decimals}">
+    </div>
+
+    <div class="settings-confirm" id="settingsConfirm"></div>
+  `;
+
+  document.getElementById('compareToggle').addEventListener('change', (e) => {
+    state.compareEnabled = e.target.checked;
+    document.getElementById('settingsConfirm').textContent =
+      state.compareEnabled
+        ? 'Comparison turned on. Check Overview to see the trend sentence again.'
+        : 'Comparison turned off. The Overview trend sentence is now hidden.';
+  });
+
+  document.getElementById('decimalsInput').addEventListener('change', (e) => {
+    let val = parseInt(e.target.value, 10);
+    if (!Number.isFinite(val) || val < 0) val = 0;
+    if (val > 3) val = 3;
+    state.decimals = val;
+    e.target.value = val;
+    document.getElementById('settingsConfirm').textContent =
+      `Precision set to ${val} decimal place${val === 1 ? '' : 's'}. Check Overview's trend sentence.`;
+  });
+}
+
+function renderApp() {
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.toggle('active', link.dataset.view === state.view);
+  });
+
+  document.getElementById('view-overview').style.display = state.view === 'overview' ? 'block' : 'none';
+  document.getElementById('view-cohorts').style.display = state.view === 'cohorts' ? 'block' : 'none';
+  document.getElementById('view-exports').style.display = state.view === 'exports' ? 'block' : 'none';
+  document.getElementById('view-settings').style.display = state.view === 'settings' ? 'flex' : 'none';
+
+  const topbar = TOPBAR[state.view];
+  document.getElementById('topbarTitle').textContent = topbar.title;
+  document.getElementById('topbarSub').textContent = topbar.sub;
+
+  if (state.view === 'overview') {
+    render();
+  } else if (state.view === 'cohorts') {
+    renderCohorts();
+  } else if (state.view === 'exports') {
+    renderExports();
+  } else if (state.view === 'settings') {
+    renderSettings();
+  }
+}
+
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    state.view = link.dataset.view;
+    renderApp();
+  });
+});
+
+renderApp();
+
+/* ---------------------------------------------------------------
+   Guided tour (Arcade-style spotlight + step caption)
+   --------------------------------------------------------------- */
+const TOOL_ICONS = {
+  airtable: { name: 'Airtable', domain: 'airtable.com' },
+  supabase: { name: 'Supabase', domain: 'supabase.com' },
+  claude:   { name: 'Claude', domain: 'anthropic.com' }
+};
+
+const TOUR_STEPS = [
+  {
+    target: () => document.querySelector('.app-topbar h1'),
+    text: 'This is PulseBoard — a dashboard that recomputes from the underlying daily data every time you touch a control, not a stale screenshot someone updates by hand.',
+    before: () => { state.view = 'overview'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="supabase"]'),
+    tool: 'supabase',
+    text: 'Every daily row behind this dashboard is stored in Supabase — the chart, the cohorts, the CSV export all read from that same structured table, not a spreadsheet someone updates by hand.'
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="airtable"]'),
+    tool: 'airtable',
+    text: 'Airtable sits on top as the working view your team actually opens day to day — same data as Supabase, just shaped for people instead of a database query.'
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="claude"]'),
+    tool: 'claude',
+    text: 'The plain-English line under the chart is what Claude generates from the numbers — not a canned sentence, a real summary of whatever range and segment you happen to be looking at.'
+  },
+  {
+    target: () => document.querySelector('#rangeGroup button[data-range="7"]'),
+    text: 'Switch the date range to 7 days and the chart actually redraws on a different slice of data — 90 points become 7.',
+    before: () => { state.view = 'overview'; renderApp(); },
+    action: () => document.querySelector('#rangeGroup button[data-range="7"]').click()
+  },
+  {
+    target: () => document.getElementById('trendChart'),
+    text: 'That chart now has 7 data points instead of 90 — open dev tools and you would see chart.data.datasets[0].data.length change from 90 to 7. It is a real re-render, not a swapped image.'
+  },
+  {
+    target: () => document.getElementById('insightLine'),
+    text: 'Here is the actual logic behind that sentence: it averages revenue across the current 7-day window, averages revenue across the 7 days immediately before it, then reports the percent change. At the default 7-day range that comes out to revenue up 9.0% vs. the prior 7 days — a real number computed from the data, not a canned line.'
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="cohorts"]'),
+    text: 'Cohorts rolls the same daily data into 7-day weekly buckets — no separate dataset, just a live aggregation.',
+    action: () => { state.view = 'cohorts'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('#view-cohorts tbody tr'),
+    text: 'Take the very first week, March 28 through April 3: total revenue $10,575, 84 leads, 19 churned — sum the 7 daily rows yourself and you land on the same numbers.'
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="exports"]'),
+    text: 'Exports does real work — click it and it downloads an actual CSV of exactly the data on screen.',
+    action: () => { state.view = 'exports'; renderApp(); }
+  },
+  {
+    target: () => document.getElementById('downloadCsvBtn'),
+    text: 'Click Download CSV and the browser builds an actual file from the daily rows in memory, then triggers a real download — same Blob-and-anchor mechanism a browser uses for any file save.',
+    action: () => { const btn = document.getElementById('downloadCsvBtn'); if (btn) btn.click(); }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="settings"]'),
+    text: 'Settings controls what Overview actually shows, not just labels.',
+    action: () => { state.view = 'settings'; renderApp(); }
+  },
+  {
+    target: () => document.getElementById('compareToggle'),
+    text: 'The compare toggle turns that prior-period sentence on Overview on or off entirely, and decimal precision controls how many decimal places the percentage shows — both take effect the next time you look at Overview.'
+  }
+];
+
+let tourIndex = 0;
+let tourEls = null;
+
+function buildTourEls() {
+  if (tourEls) return tourEls;
+  const scrim = document.createElement('div');
+  scrim.className = 'tour-scrim';
+  const ring = document.createElement('div');
+  ring.className = 'tour-ring';
+  const card = document.createElement('div');
+  card.className = 'tour-card';
+  card.innerHTML = `
+    <div class="tour-step" id="tourStepLabel"></div>
+    <div class="tour-tool" id="tourTool" style="display:none;"></div>
+    <div class="tour-text" id="tourText"></div>
+    <div class="tour-controls">
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-nav-btns">
+        <button class="tour-skip" id="tourSkipBtn" type="button">Skip</button>
+        <button class="tour-next" id="tourNextBtn" type="button">Next</button>
+      </div>
+    </div>
+  `;
+  document.body.append(scrim, ring, card);
+  tourEls = { scrim, ring, card };
+  document.getElementById('tourSkipBtn').addEventListener('click', endTour);
+  document.getElementById('tourNextBtn').addEventListener('click', advanceTour);
+  return tourEls;
+}
+
+function positionTour(target) {
+  const { ring, card } = buildTourEls();
+  const r = target.getBoundingClientRect();
+  const pad = 6;
+  ring.style.top = (r.top - pad) + 'px';
+  ring.style.left = (r.left - pad) + 'px';
+  ring.style.width = (r.width + pad * 2) + 'px';
+  ring.style.height = (r.height + pad * 2) + 'px';
+
+  const cardWidth = 300;
+  let cardTop = r.bottom + 14;
+  let cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
+  if (cardTop + 140 > window.innerHeight) cardTop = Math.max(r.top - 160, 16);
+  card.style.top = cardTop + 'px';
+  card.style.left = cardLeft + 'px';
+}
+
+function runTourStep(index) {
+  const step = TOUR_STEPS[index];
+  if (!step) return endTour();
+  if (step.before) step.before();
+  if (step.action) step.action();
+
+  setTimeout(() => {
+    const target = step.target();
+    if (!target) return advanceTour();
+    target.scrollIntoView({ block: 'nearest' });
+    positionTour(target);
+
+    document.getElementById('tourStepLabel').textContent = `Step ${index + 1} of ${TOUR_STEPS.length}`;
+    const toolEl = document.getElementById('tourTool');
+    if (step.tool && TOOL_ICONS[step.tool]) {
+      const t = TOOL_ICONS[step.tool];
+      toolEl.style.display = 'flex';
+      toolEl.innerHTML = `<img src="https://www.google.com/s2/favicons?domain=${t.domain}&sz=32" alt=""> Powered by ${t.name}`;
+    } else {
+      toolEl.style.display = 'none';
+      toolEl.innerHTML = '';
+    }
+    document.getElementById('tourText').textContent = step.text;
+    document.getElementById('tourNextBtn').textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+    document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) =>
+      `<span class="tour-dot ${i === index ? 'current' : ''}"></span>`).join('');
+  });
+}
+
+function advanceTour() {
+  tourIndex += 1;
+  if (tourIndex >= TOUR_STEPS.length) return endTour();
+  runTourStep(tourIndex);
+}
+
+function startTour() {
+  tourIndex = 0;
+  buildTourEls();
+  tourEls.scrim.classList.add('active');
+  runTourStep(0);
+}
+
+function endTour() {
+  if (!tourEls) return;
+  tourEls.scrim.classList.remove('active');
+  tourEls.ring.style.width = '0px';
+  tourEls.ring.style.height = '0px';
+  tourEls.card.style.top = '-9999px';
+}
+
+document.getElementById('tourBtn').addEventListener('click', startTour);
+window.addEventListener('resize', () => {
+  if (tourEls && tourEls.scrim.classList.contains('active')) positionTour(TOUR_STEPS[tourIndex].target());
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,542 @@
+/* ============================================================
+   shared.css — common dashboard chrome for the 8 portfolio apps
+   Calm, flat, professional SaaS-dashboard look.
+   Each app overrides --accent (and optionally --bg/--surface) via
+   an inline <style> block to set its own brand color.
+   ============================================================ */
+
+:root {
+  --bg: #0e1117;
+  --surface: #171b24;
+  --surface-2: #1d2230;
+  --border: #2a2f3d;
+  --text: #e6e8ec;
+  --muted: #8a909e;
+  --accent: #4d8dff;
+  --accent-contrast: #ffffff;
+  --radius: 6px;
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.02);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+button {
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------
+   App shell: sidebar + main
+   --------------------------------------------------------------- */
+.app-shell {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.app-sidebar {
+  width: 220px;
+  flex: 0 0 220px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  box-shadow: 1px 0 0 rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+}
+
+.back-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  margin-bottom: 10px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  width: fit-content;
+}
+
+.back-link:hover {
+  background: var(--bg);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.back-link .back-arrow {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.app-sidebar .logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 4px 8px 16px;
+  color: var(--text);
+}
+
+.app-sidebar .logo .logo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+
+.app-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.app-nav a,
+.app-nav .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.app-nav a:hover { background: var(--bg); text-decoration: none; }
+
+.app-nav a.active,
+.app-nav .nav-link.active {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.app-nav .nav-link.disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+  justify-content: space-between;
+}
+
+.app-nav .nav-link.disabled::after {
+  content: 'Soon';
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+.app-sidebar-footer {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.app-sidebar-footer .footer-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 0 0 8px 4px;
+}
+
+.tool-badge-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.app-topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.app-topbar h1 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+}
+
+.app-topbar .topbar-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* ---------------------------------------------------------------
+   Data table
+   --------------------------------------------------------------- */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.data-table th,
+.data-table td {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table thead th {
+  background: var(--bg);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.data-table tbody tr:last-child td { border-bottom: none; }
+
+.data-table tbody tr:nth-child(even) { background: var(--bg); }
+
+.data-table tbody tr.clickable { cursor: pointer; }
+.data-table tbody tr.clickable:hover { background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+
+.data-table tbody tr.selected {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+.data-table .col-num,
+.data-table td.num,
+.data-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sort-btn {
+  background: none;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.sort-btn .sort-arrow {
+  font-size: 10px;
+  opacity: 0.4;
+}
+
+.sort-btn.sort-asc .sort-arrow,
+.sort-btn.sort-desc .sort-arrow {
+  opacity: 1;
+  color: var(--accent);
+}
+
+/* ---------------------------------------------------------------
+   Filter bar
+   --------------------------------------------------------------- */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.filter-chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.filter-chip:hover { border-color: var(--accent); color: var(--text); }
+
+.filter-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.search-input {
+  flex: 0 1 240px;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 7px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ---------------------------------------------------------------
+   Kanban
+   --------------------------------------------------------------- */
+.kanban {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  height: 100%;
+}
+
+.kanban-col {
+  flex: 1 1 0;
+  min-width: 220px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+.kanban-col.drag-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg));
+}
+
+.kanban-col-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.kanban-col-header .col-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text);
+}
+
+.kanban-col-header .col-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.kanban-col-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kanban-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: 10px 12px;
+  cursor: grab;
+  font-size: 13px;
+}
+
+.kanban-card:active { cursor: grabbing; }
+
+.kanban-card.dragging {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.kanban-card .card-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.kanban-card .card-meta {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ---------------------------------------------------------------
+   Badges
+   --------------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.badge-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.badge-tool img {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+/* ---------------------------------------------------------------
+   Responsive — tablet and mobile
+   Sidebar collapses into a horizontal top bar instead of a left
+   rail; tables and kanban scroll horizontally instead of squeezing
+   columns unreadably; split-pane layouts (table + detail panel)
+   are restacked per-app via their own media query (see each app's
+   <style> block) since those container classes are app-specific.
+   --------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .app-shell {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .app-sidebar {
+    width: 100%;
+    flex: 0 0 auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.25);
+    padding: 10px 12px;
+  }
+
+  .back-link { margin-bottom: 6px; }
+
+  .app-sidebar .logo { padding: 2px 8px 10px; }
+
+  .app-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .app-sidebar-footer {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+
+  .tool-badge-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .app-main { min-width: 0; overflow: visible; }
+
+  .app-content { overflow-y: visible; padding: 16px; }
+
+  .app-topbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  html, body { font-size: 13px; }
+
+  .app-content { padding: 12px; }
+
+  .app-topbar h1 { font-size: 15px; }
+
+  .filter-bar { gap: 6px; }
+
+  .search-input {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+}
+
+/* Tables: the containing block scrolls horizontally on narrow screens
+   rather than the table crushing its own columns unreadable. */
+@media (max-width: 700px) {
+  .data-table { min-width: 540px; }
+
+  .app-content {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Kanban: scroll horizontally instead of squeezing columns below usable width */
+.kanban {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+@media (max-width: 700px) {
+  .kanban-col { min-width: 200px; }
+}

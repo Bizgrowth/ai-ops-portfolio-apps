@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PipelineIQ — Sales Deal Pipeline</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  :root {
+    --accent: #c2410c;
+  }
+
+  .kanban-wrap {
+    height: 100%;
+  }
+
+  .deal-value {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .deal-prob {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .prob-high { color: #1d7a3e; }
+  .prob-mid  { color: #9a6500; }
+  .prob-low  { color: #b3261e; }
+
+  .col-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 4px;
+  }
+
+  .col-stats .stat-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .col-stats .stat-line .stat-val {
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kanban-col-count {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  /* ---------------------------------------------------------------
+     Reports view
+     --------------------------------------------------------------- */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 14px 16px;
+  }
+
+  .summary-card .summary-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .summary-card .summary-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0 0 10px;
+  }
+
+  /* ---------------------------------------------------------------
+     Settings view
+     --------------------------------------------------------------- */
+  .settings-panel {
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .settings-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .settings-row .settings-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .settings-row .settings-help {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 22px;
+    flex: 0 0 auto;
+  }
+
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    transition: background 0.15s ease;
+  }
+
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    top: 2px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  .toggle-switch input:checked + .toggle-slider {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(16px);
+    background: var(--accent-contrast);
+  }
+
+  .reset-btn {
+    align-self: flex-start;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .settings-confirm {
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  /* ---------------------------------------------------------------
+     Guided tour (Arcade-style spotlight + step caption)
+     --------------------------------------------------------------- */
+  .tour-btn {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    flex: 0 0 auto;
+  }
+
+  .tour-btn:hover { opacity: 0.92; }
+
+  .tour-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 200;
+    display: none;
+  }
+
+  .tour-scrim.active { display: block; }
+
+  .tour-ring {
+    position: fixed;
+    z-index: 201;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 24px rgba(0,0,0,0.5);
+    pointer-events: none;
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  }
+
+  .tour-card {
+    position: fixed;
+    z-index: 202;
+    width: min(300px, calc(100vw - 32px));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    padding: 16px;
+    transition: top 0.25s ease, left 0.25s ease;
+  }
+
+  .tour-card .tour-step {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .tour-card .tour-tool {
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px 3px 6px;
+    margin-bottom: 10px;
+    width: fit-content;
+  }
+
+  .tour-card .tour-tool img {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+
+  .tour-card .tour-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .tour-card .tour-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tour-card .tour-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .tour-card .tour-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .tour-card .tour-dot.current { background: var(--accent); }
+
+  .tour-card .tour-nav-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .tour-card button.tour-next {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .tour-card button.tour-skip {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 6px 4px;
+  }
+
+  .tour-card button.tour-skip:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <a href="index.html" class="back-link"><span class="back-arrow">←</span> All apps</a>
+    <div class="logo"><span class="logo-dot"></span> PipelineIQ</div>
+    <nav class="app-nav">
+      <a href="#" class="nav-link active" data-view="deals">Deals</a>
+      <a href="#" class="nav-link" data-view="reports">Reports</a>
+      <a href="#" class="nav-link" data-view="settings">Settings</a>
+    </nav>
+    <div class="app-sidebar-footer">
+      <div class="footer-label">Built on</div>
+      <div class="tool-badge-row">
+        <span class="badge-tool" data-tool="hubspot"><img src="https://www.google.com/s2/favicons?domain=hubspot.com&sz=32" alt=""> HubSpot</span>
+        <span class="badge-tool" data-tool="make"><img src="https://www.google.com/s2/favicons?domain=make.com&sz=32" alt=""> Make.com</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="app-main">
+    <div class="app-topbar">
+      <div>
+        <h1 id="topbarTitle">Deals</h1>
+        <div class="topbar-sub" id="topbarSub">Drag a deal between stages — totals and forecast recalculate live</div>
+      </div>
+      <button class="tour-btn" id="tourBtn" type="button">▶ Take the tour</button>
+    </div>
+
+    <div class="app-content">
+      <div class="kanban-wrap" id="view-deals">
+        <div class="kanban" id="kanban"></div>
+      </div>
+
+      <div id="view-reports" style="display:none;"></div>
+
+      <div class="settings-panel" id="view-settings" style="display:none;"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const STAGES = ['New', 'Qualified', 'Proposal', 'Won'];
+
+const DEALS = [
+  { id: 1,  name: 'Website Rebuild',        company: 'BrightWorks Studio',     value: 8500,  stage: 'New',       probability: 0.15 },
+  { id: 2,  name: 'CRM Cleanup + Routing',  company: 'Kim & Co Realty',        value: 12000, stage: 'New',       probability: 0.2 },
+  { id: 3,  name: 'Intake Automation',      company: 'Cho Wellness Clinic',    value: 15500, stage: 'Qualified', probability: 0.4 },
+  { id: 4,  name: 'Patient Reminder Flow',  company: 'Romero Dental Group',    value: 6800,  stage: 'Qualified', probability: 0.5 },
+  { id: 5,  name: 'Dispatch System',        company: 'Talbot Logistics',       value: 21000, stage: 'Qualified', probability: 0.35 },
+  { id: 6,  name: 'Onboarding Workflow',    company: 'Vu Design Collective',   value: 9200,  stage: 'Proposal',  probability: 0.6 },
+  { id: 7,  name: 'Legal Intake Bot',       company: 'Williams Legal Partners',value: 18000, stage: 'Proposal',  probability: 0.7 },
+  { id: 8,  name: 'Service Follow-up',      company: 'Mendez Auto Group',      value: 7400,  stage: 'Proposal',  probability: 0.55 },
+  { id: 9,  name: 'Lead Scoring Build',     company: 'Coastal Outfitters',     value: 11000, stage: 'Won',       probability: 1 },
+  { id: 10, name: 'AI Ops Assessment',      company: 'Foster & Lin CPA',       value: 2500,  stage: 'Won',       probability: 1 },
+  { id: 11, name: 'Scheduling Centralizer', company: 'Ortega Home Services',   value: 9800,  stage: 'New',       probability: 0.25 },
+  { id: 12, name: 'Change Order Tracker',   company: 'Reyes Construction',     value: 13200, stage: 'Qualified', probability: 0.45 }
+];
+
+const currency = (n) => '$' + Math.round(n).toLocaleString('en-US');
+
+const state = {
+  view: 'deals', // 'deals' | 'reports' | 'settings'
+  showForecast: true
+};
+
+const TOPBAR = {
+  deals: { title: 'Deals', sub: 'Drag a deal between stages — totals and forecast recalculate live' },
+  reports: { title: 'Reports', sub: 'Pipeline value, win rate, and forecast by stage — computed live from current deals' },
+  settings: { title: 'Settings', sub: 'Display preferences and sample data' }
+};
+
+function probClass(p) {
+  if (p >= 0.6) return 'prob-high';
+  if (p >= 0.35) return 'prob-mid';
+  return 'prob-low';
+}
+
+let draggedId = null;
+
+function dealsForStage(stage) {
+  return DEALS.filter(d => d.stage === stage);
+}
+
+function stageTotals(stage) {
+  const deals = dealsForStage(stage);
+  const total = deals.reduce((sum, d) => sum + d.value, 0);
+  const forecast = deals.reduce((sum, d) => sum + d.value * d.probability, 0);
+  return { total, forecast, count: deals.length };
+}
+
+function renderApp() {
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.toggle('active', link.dataset.view === state.view);
+  });
+
+  document.getElementById('view-deals').style.display = state.view === 'deals' ? 'block' : 'none';
+  document.getElementById('view-reports').style.display = state.view === 'reports' ? 'block' : 'none';
+  document.getElementById('view-settings').style.display = state.view === 'settings' ? 'flex' : 'none';
+
+  const topbar = TOPBAR[state.view];
+  document.getElementById('topbarTitle').textContent = topbar.title;
+  document.getElementById('topbarSub').textContent = topbar.sub;
+
+  if (state.view === 'deals') {
+    render();
+  } else if (state.view === 'reports') {
+    renderReports();
+  } else if (state.view === 'settings') {
+    renderSettings();
+  }
+}
+
+function render() {
+  const kanban = document.getElementById('kanban');
+
+  kanban.innerHTML = STAGES.map(stage => {
+    const { total, forecast, count } = stageTotals(stage);
+    const deals = dealsForStage(stage);
+
+    return `
+      <div class="kanban-col" data-stage="${stage}">
+        <div class="kanban-col-header">
+          <div class="col-title">${stage} <span class="kanban-col-count">(${count})</span></div>
+          <div class="col-stats">
+            <div class="stat-line"><span>Total</span><span class="stat-val">${currency(total)}</span></div>
+            ${state.showForecast ? `<div class="stat-line"><span>Weighted forecast</span><span class="stat-val">${currency(forecast)}</span></div>` : ''}
+          </div>
+        </div>
+        <div class="kanban-col-body" data-stage="${stage}">
+          ${deals.map(d => `
+            <div class="kanban-card" draggable="true" data-id="${d.id}">
+              <div class="card-title">${d.name}</div>
+              <div class="card-meta">
+                <span>${d.company}</span>
+              </div>
+              <div class="card-meta">
+                <span class="deal-value">${currency(d.value)}</span>
+                ${state.showForecast ? `<span class="deal-prob ${probClass(d.probability)}">${Math.round(d.probability * 100)}%</span>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  attachDragHandlers();
+}
+
+function getPipelineSummary() {
+  const totalValue = DEALS.reduce((sum, d) => sum + d.value, 0);
+  const totalForecast = DEALS.reduce((sum, d) => sum + d.value * d.probability, 0);
+  const wonCount = DEALS.filter(d => d.stage === 'Won').length;
+  const winRate = DEALS.length ? wonCount / DEALS.length : 0;
+  const avgDealSize = DEALS.length ? totalValue / DEALS.length : 0;
+  return { totalValue, totalForecast, winRate, avgDealSize, count: DEALS.length };
+}
+
+function renderReports() {
+  const summary = getPipelineSummary();
+  const container = document.getElementById('view-reports');
+
+  const rows = STAGES.map(stage => {
+    const { total, forecast, count } = stageTotals(stage);
+    return `
+      <tr>
+        <td>${stage}</td>
+        <td class="num">${count}</td>
+        <td class="num">${currency(total)}</td>
+        ${state.showForecast ? `<td class="num">${currency(forecast)}</td>` : ''}
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Total pipeline value</div>
+        <div class="summary-value">${currency(summary.totalValue)}</div>
+      </div>
+      ${state.showForecast ? `
+      <div class="summary-card">
+        <div class="summary-label">Weighted forecast</div>
+        <div class="summary-value">${currency(summary.totalForecast)}</div>
+      </div>` : ''}
+      <div class="summary-card">
+        <div class="summary-label">Win rate</div>
+        <div class="summary-value">${Math.round(summary.winRate * 100)}%</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Average deal size</div>
+        <div class="summary-value">${currency(summary.avgDealSize)}</div>
+      </div>
+    </div>
+
+    <div class="section-title">By stage</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Stage</th>
+          <th class="num">Deals</th>
+          <th class="num">Total value</th>
+          ${state.showForecast ? '<th class="num">Weighted forecast</th>' : ''}
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function renderSettings() {
+  const panel = document.getElementById('view-settings');
+  panel.innerHTML = `
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Show weighted forecast</div>
+        <div class="settings-help">Hides the forecast number on Deals kanban headers and the Reports view when off</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="forecastToggle" ${state.showForecast ? 'checked' : ''}>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <button class="reset-btn" id="resetDataBtn">Reset to sample data</button>
+    <div class="settings-confirm" id="resetConfirm"></div>
+  `;
+
+  document.getElementById('forecastToggle').addEventListener('change', (e) => {
+    state.showForecast = e.target.checked;
+  });
+
+  document.getElementById('resetDataBtn').addEventListener('click', () => {
+    const confirm = document.getElementById('resetConfirm');
+    confirm.textContent = `Sample data confirmed: ${DEALS.length} deals loaded, unchanged from default.`;
+  });
+}
+
+function attachDragHandlers() {
+  document.querySelectorAll('.kanban-card').forEach(card => {
+    card.addEventListener('dragstart', (e) => {
+      draggedId = Number(card.dataset.id);
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      draggedId = null;
+    });
+  });
+
+  document.querySelectorAll('.kanban-col').forEach(col => {
+    col.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      col.classList.add('drag-over');
+    });
+    col.addEventListener('dragleave', () => {
+      col.classList.remove('drag-over');
+    });
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      if (draggedId == null) return;
+
+      const targetStage = col.dataset.stage;
+      const deal = DEALS.find(d => d.id === draggedId);
+      if (deal && deal.stage !== targetStage) {
+        deal.stage = targetStage;
+      }
+      draggedId = null;
+      render();
+    });
+  });
+}
+
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    state.view = link.dataset.view;
+    renderApp();
+  });
+});
+
+renderApp();
+
+/* ---------------------------------------------------------------
+   Guided tour (Arcade-style spotlight + step caption)
+   --------------------------------------------------------------- */
+const TOOL_ICONS = {
+  hubspot: { name: 'HubSpot', domain: 'hubspot.com' },
+  make:    { name: 'Make.com', domain: 'make.com' }
+};
+
+const TOUR_STEPS = [
+  {
+    target: () => document.querySelector('.app-topbar h1'),
+    text: 'This is PipelineIQ — your sales pipeline as a board. Drag a deal between stages and the money totals recalculate live, no manual math.',
+    before: () => { state.view = 'deals'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="hubspot"]'),
+    tool: 'hubspot',
+    text: 'Every deal here lives in HubSpot — that\'s the system of record. This board is just a working view of it, not a separate copy.',
+    before: () => { state.view = 'deals'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="make"]'),
+    tool: 'make',
+    text: 'Make.com keeps stage changes flowing back to HubSpot automatically, in both directions, so this board and your CRM never drift apart.'
+  },
+  {
+    target: () => document.querySelector('.kanban-col[data-stage="Qualified"] .kanban-card'),
+    text: 'Drag any card to a new stage — watch "Website Rebuild" move from New into Qualified, and both column totals update instantly.',
+    before: () => { state.view = 'deals'; renderApp(); },
+    action: () => {
+      const deal = DEALS.find(d => d.id === 1);
+      if (deal) deal.stage = 'Qualified';
+      render();
+    }
+  },
+  {
+    target: () => document.querySelector('.kanban-col[data-stage="Qualified"] .stat-line:nth-child(2)'),
+    text: 'This column\'s forecast isn\'t the deal total — it\'s value times probability, summed. The "Dispatch System" deal for Talbot Logistics is worth $21,000 at 35% odds, so it only counts as $7,350 here — that\'s the realistic expected value, not wishful thinking.',
+    before: () => { state.view = 'deals'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="reports"]'),
+    text: 'Reports rolls the same numbers up across the whole pipeline — total value, weighted forecast, win rate, average deal size, all computed live from these same deals.',
+    action: () => { state.view = 'reports'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="settings"]'),
+    text: 'Settings has one switch worth knowing about — it controls whether the weighted forecast shows at all, on both Deals and Reports.',
+    action: () => { state.view = 'settings'; renderApp(); }
+  }
+];
+
+let tourIndex = 0;
+let tourEls = null;
+
+function buildTourEls() {
+  if (tourEls) return tourEls;
+  const scrim = document.createElement('div');
+  scrim.className = 'tour-scrim';
+  const ring = document.createElement('div');
+  ring.className = 'tour-ring';
+  const card = document.createElement('div');
+  card.className = 'tour-card';
+  card.innerHTML = `
+    <div class="tour-step" id="tourStepLabel"></div>
+    <div class="tour-tool" id="tourTool" style="display:none;"></div>
+    <div class="tour-text" id="tourText"></div>
+    <div class="tour-controls">
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-nav-btns">
+        <button class="tour-skip" id="tourSkipBtn" type="button">Skip</button>
+        <button class="tour-next" id="tourNextBtn" type="button">Next</button>
+      </div>
+    </div>
+  `;
+  document.body.append(scrim, ring, card);
+  tourEls = { scrim, ring, card };
+  document.getElementById('tourSkipBtn').addEventListener('click', endTour);
+  document.getElementById('tourNextBtn').addEventListener('click', advanceTour);
+  return tourEls;
+}
+
+function positionTour(target) {
+  const { ring, card } = buildTourEls();
+  const r = target.getBoundingClientRect();
+  const pad = 6;
+  ring.style.top = (r.top - pad) + 'px';
+  ring.style.left = (r.left - pad) + 'px';
+  ring.style.width = (r.width + pad * 2) + 'px';
+  ring.style.height = (r.height + pad * 2) + 'px';
+
+  const cardWidth = 300;
+  let cardTop = r.bottom + 14;
+  let cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
+  if (cardTop + 140 > window.innerHeight) cardTop = Math.max(r.top - 160, 16);
+  card.style.top = cardTop + 'px';
+  card.style.left = cardLeft + 'px';
+}
+
+function runTourStep(index) {
+  const step = TOUR_STEPS[index];
+  if (!step) return endTour();
+  if (step.before) step.before();
+  if (step.action) step.action();
+
+  setTimeout(() => {
+    const target = step.target();
+    if (!target) return advanceTour();
+    target.scrollIntoView({ block: 'nearest' });
+    positionTour(target);
+
+    document.getElementById('tourStepLabel').textContent = `Step ${index + 1} of ${TOUR_STEPS.length}`;
+    const toolEl = document.getElementById('tourTool');
+    if (step.tool && TOOL_ICONS[step.tool]) {
+      const t = TOOL_ICONS[step.tool];
+      toolEl.style.display = 'flex';
+      toolEl.innerHTML = `<img src="https://www.google.com/s2/favicons?domain=${t.domain}&sz=32" alt=""> Powered by ${t.name}`;
+    } else {
+      toolEl.style.display = 'none';
+      toolEl.innerHTML = '';
+    }
+    document.getElementById('tourText').textContent = step.text;
+    document.getElementById('tourNextBtn').textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+    document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) =>
+      `<span class="tour-dot ${i === index ? 'current' : ''}"></span>`).join('');
+  });
+}
+
+function advanceTour() {
+  tourIndex += 1;
+  if (tourIndex >= TOUR_STEPS.length) return endTour();
+  runTourStep(tourIndex);
+}
+
+function startTour() {
+  tourIndex = 0;
+  buildTourEls();
+  tourEls.scrim.classList.add('active');
+  runTourStep(0);
+}
+
+function endTour() {
+  if (!tourEls) return;
+  tourEls.scrim.classList.remove('active');
+  tourEls.ring.style.width = '0px';
+  tourEls.ring.style.height = '0px';
+  tourEls.card.style.top = '-9999px';
+}
+
+document.getElementById('tourBtn').addEventListener('click', startTour);
+window.addEventListener('resize', () => {
+  if (tourEls && tourEls.scrim.classList.contains('active')) positionTour(TOUR_STEPS[tourIndex].target());
+});
+</script>
+
+</body>
+</html>

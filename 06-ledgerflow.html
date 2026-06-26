@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LedgerFlow — Invoicing &amp; AR Aging</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  :root {
+    --accent: #15803d;
+  }
+
+  .summary-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+
+  .summary-card .card-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .summary-card .card-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .summary-card.bucket-warn .card-value { color: #fbbf24; }
+  .summary-card.bucket-bad .card-value { color: #f87171; }
+
+  .result-count {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .status-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+  }
+
+  .status-paid { color: #4ade80; border-color: rgba(74,222,128,0.3); background: rgba(74,222,128,0.12); }
+  .status-current { color: #6fa3ff; border-color: rgba(111,163,255,0.3); background: rgba(111,163,255,0.12); }
+  .status-overdue { color: #fbbf24; border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.12); }
+  .status-badoverdue { color: #f87171; border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.12); }
+
+  .pay-btn {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .pay-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .pay-btn.is-paid {
+    background: var(--bg);
+    color: var(--muted);
+  }
+
+  td.num, th.num { font-variant-numeric: tabular-nums; }
+
+  /* ---------------------------------------------------------------
+     Clients view
+     --------------------------------------------------------------- */
+  .client-name { font-weight: 600; color: var(--text); }
+
+  /* ---------------------------------------------------------------
+     Reports view
+     --------------------------------------------------------------- */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 24px 0 10px;
+  }
+
+  .section-title:first-child { margin-top: 0; }
+
+  /* ---------------------------------------------------------------
+     Settings view
+     --------------------------------------------------------------- */
+  .settings-panel {
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .settings-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .settings-row .settings-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .settings-row .settings-help {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    max-width: 320px;
+  }
+
+  .settings-input {
+    width: 70px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 10px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .settings-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .settings-confirm {
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  /* ---------------------------------------------------------------
+     Guided tour (Arcade-style spotlight + step caption)
+     --------------------------------------------------------------- */
+  .tour-btn {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    flex: 0 0 auto;
+  }
+
+  .tour-btn:hover { opacity: 0.92; }
+
+  .tour-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 200;
+    display: none;
+  }
+
+  .tour-scrim.active { display: block; }
+
+  .tour-ring {
+    position: fixed;
+    z-index: 201;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 24px rgba(0,0,0,0.5);
+    pointer-events: none;
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  }
+
+  .tour-card {
+    position: fixed;
+    z-index: 202;
+    width: min(300px, calc(100vw - 32px));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    padding: 16px;
+    transition: top 0.25s ease, left 0.25s ease;
+  }
+
+  .tour-card .tour-step {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .tour-card .tour-tool {
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px 3px 6px;
+    margin-bottom: 10px;
+    width: fit-content;
+  }
+
+  .tour-card .tour-tool img {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+
+  .tour-card .tour-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .tour-card .tour-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tour-card .tour-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .tour-card .tour-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .tour-card .tour-dot.current { background: var(--accent); }
+
+  .tour-card .tour-nav-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .tour-card button.tour-next {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .tour-card button.tour-skip {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 6px 4px;
+  }
+
+  .tour-card button.tour-skip:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <a href="index.html" class="back-link"><span class="back-arrow">←</span> All apps</a>
+    <div class="logo"><span class="logo-dot"></span> LedgerFlow</div>
+    <nav class="app-nav">
+      <a href="#" class="nav-link active" data-view="invoices">Invoices</a>
+      <a href="#" class="nav-link" data-view="clients">Clients</a>
+      <a href="#" class="nav-link" data-view="reports">Reports</a>
+      <a href="#" class="nav-link" data-view="settings">Settings</a>
+    </nav>
+    <div class="app-sidebar-footer">
+      <div class="footer-label">Built on</div>
+      <div class="tool-badge-row">
+        <span class="badge-tool" data-tool="make"><img src="https://www.google.com/s2/favicons?domain=make.com&sz=32" alt=""> Make.com</span>
+        <span class="badge-tool" data-tool="airtable"><img src="https://www.google.com/s2/favicons?domain=airtable.com&sz=32" alt=""> Airtable</span>
+        <span class="badge-tool" data-tool="hubspot"><img src="https://www.google.com/s2/favicons?domain=hubspot.com&sz=32" alt=""> HubSpot</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="app-main">
+    <div class="app-topbar">
+      <div>
+        <h1 id="topbarTitle">Invoices</h1>
+        <div class="topbar-sub" id="topbarSub">Accounts receivable aging as of June 25, 2026</div>
+      </div>
+      <button class="tour-btn" id="tourBtn" type="button">▶ Take the tour</button>
+    </div>
+
+    <div class="app-content">
+      <div id="view-invoices">
+        <div class="summary-strip" id="summaryStrip"></div>
+
+        <div class="result-count" id="resultCount"></div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Invoice</th>
+              <th>Client</th>
+              <th>Issue date</th>
+              <th>Due date</th>
+              <th class="num">Amount</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="invoicesBody"></tbody>
+        </table>
+      </div>
+
+      <div id="view-clients" style="display:none;"></div>
+
+      <div id="view-reports" style="display:none;"></div>
+
+      <div class="settings-panel" id="view-settings" style="display:none;"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+// Fixed reference date so aging math is deterministic and reviewable.
+const TODAY = new Date('2026-06-25');
+
+const INVOICES = [
+  { id: 'INV-1001', client: 'BrightWorks Studio',     amount: 2400,  issueDate: '2026-05-26', dueDate: '2026-06-10', paid: true  },
+  { id: 'INV-1002', client: 'Coastal Outfitters',      amount: 1850,  issueDate: '2026-05-30', dueDate: '2026-06-14', paid: true  },
+  { id: 'INV-1003', client: 'Foster & Lin CPA',        amount: 3200,  issueDate: '2026-06-10', dueDate: '2026-06-30', paid: false }, // due in 5 days -> current
+  { id: 'INV-1004', client: 'Romero Dental Group',     amount: 1500,  issueDate: '2026-06-05', dueDate: '2026-07-05', paid: false }, // due in 10 days -> current
+  { id: 'INV-1005', client: 'Talbot Logistics',        amount: 4100,  issueDate: '2026-05-20', dueDate: '2026-06-19', paid: false }, // 6 days overdue -> 1-30
+  { id: 'INV-1006', client: 'Kim & Co Realty',         amount: 2750,  issueDate: '2026-05-15', dueDate: '2026-06-14', paid: false }, // 11 days overdue -> 1-30
+  { id: 'INV-1007', client: 'Brackett Fitness',        amount: 980,   issueDate: '2026-05-08', dueDate: '2026-06-08', paid: false }, // 17 days overdue -> 1-30
+  { id: 'INV-1008', client: 'Vu Design Collective',    amount: 1620,  issueDate: '2026-05-01', dueDate: '2026-06-02', paid: false }, // 23 days overdue -> 1-30
+  { id: 'INV-1009', client: 'Mendez Auto Group',       amount: 5300,  issueDate: '2026-04-26', dueDate: '2026-05-26', paid: false }, // 30 days overdue -> 1-30
+  { id: 'INV-1010', client: 'Williams Legal Partners', amount: 3950,  issueDate: '2026-04-20', dueDate: '2026-05-20', paid: false }, // 36 days overdue -> 31-60
+  { id: 'INV-1011', client: 'Ortega Home Services',    amount: 1275,  issueDate: '2026-04-10', dueDate: '2026-05-10', paid: false }, // 46 days overdue -> 31-60
+  { id: 'INV-1012', client: 'Park & Bloom Florals',    amount: 690,   issueDate: '2026-03-28', dueDate: '2026-04-27', paid: false }, // 59 days overdue -> 31-60
+  { id: 'INV-1013', client: 'Reyes Construction',      amount: 6200,  issueDate: '2026-03-20', dueDate: '2026-04-19', paid: false }, // 67 days overdue -> 61+
+  { id: 'INV-1014', client: 'Cho Wellness Clinic',     amount: 2300,  issueDate: '2026-02-25', dueDate: '2026-03-27', paid: false }, // 90 days overdue -> 61+
+  { id: 'INV-1015', client: 'Striker Media Group',     amount: 1440,  issueDate: '2026-02-01', dueDate: '2026-03-03', paid: false }, // 114 days overdue -> 61+
+  { id: 'INV-1016', client: 'Hale Consulting',         amount: 2150,  issueDate: '2026-05-22', dueDate: '2026-06-21', paid: true  },
+  { id: 'INV-1017', client: 'Nair Interiors',          amount: 875,   issueDate: '2026-06-01', dueDate: '2026-06-22', paid: true  },
+  { id: 'INV-1018', client: 'Foster Wellness Group',   amount: 3400,  issueDate: '2026-06-15', dueDate: '2026-07-15', paid: false } // due in 20 days -> current
+];
+
+const state = {
+  view: 'invoices', // 'invoices' | 'clients' | 'reports' | 'settings'
+  thresholds: { mid: 30, high: 60 } // bucket boundaries in days, editable in Settings
+};
+
+const TOPBAR = {
+  invoices: { title: 'Invoices', sub: 'Accounts receivable aging as of June 25, 2026' },
+  clients: { title: 'Clients', sub: 'Per-client invoiced, outstanding, and DSO — computed live from current invoices' },
+  reports: { title: 'Reports', sub: 'Revenue, collections, and aging — computed live from current invoices' },
+  settings: { title: 'Settings', sub: 'Aging bucket thresholds' }
+};
+
+function daysOverdue(inv) {
+  const due = new Date(inv.dueDate);
+  return Math.round((TODAY - due) / (1000 * 60 * 60 * 24));
+}
+
+// Bucket keys are fixed ('current' | 'mid' | 'high' | 'over') so they stay
+// stable even when the threshold boundaries (state.thresholds) change.
+function bucketFor(days) {
+  const { mid, high } = state.thresholds;
+  if (days <= 0) return 'current';
+  if (days <= mid) return 'mid';
+  if (days <= high) return 'high';
+  return 'over';
+}
+
+function bucketLabel(key) {
+  const { mid, high } = state.thresholds;
+  if (key === 'current') return 'Current';
+  if (key === 'mid') return `1–${mid} days overdue`;
+  if (key === 'high') return `${mid + 1}–${high} days overdue`;
+  return `${high + 1}+ days overdue`;
+}
+
+function statusInfo(inv) {
+  if (inv.paid) return { label: 'Paid', cls: 'status-paid' };
+  const days = daysOverdue(inv);
+  const bucket = bucketFor(days);
+  if (bucket === 'current') return { label: 'Current', cls: 'status-current' };
+  if (bucket === 'mid') return { label: `${days}d overdue`, cls: 'status-overdue' };
+  return { label: `${days}d overdue`, cls: 'status-badoverdue' };
+}
+
+function fmtMoney(n) {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function fmtDate(s) {
+  const d = new Date(s);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Single source of truth for aging math — reused by the Invoices summary
+// strip, the Reports view, and (per-client) the Clients view.
+function computeAging(invoices = INVOICES) {
+  const buckets = { current: 0, mid: 0, high: 0, over: 0 };
+  let dsoSum = 0;
+  let dsoCount = 0;
+
+  invoices.forEach(inv => {
+    if (inv.paid) return;
+    const days = daysOverdue(inv);
+    const bucket = bucketFor(days);
+    buckets[bucket] += inv.amount;
+    dsoSum += days;
+    dsoCount += 1;
+  });
+
+  const dso = dsoCount ? dsoSum / dsoCount : 0;
+  return { buckets, dso, dsoCount };
+}
+
+function renderSummary() {
+  const { buckets, dso, dsoCount } = computeAging();
+  const strip = document.getElementById('summaryStrip');
+  strip.innerHTML = `
+    <div class="summary-card">
+      <div class="card-label">${bucketLabel('current')}</div>
+      <div class="card-value">${fmtMoney(buckets.current)}</div>
+    </div>
+    <div class="summary-card bucket-warn">
+      <div class="card-label">${bucketLabel('mid')}</div>
+      <div class="card-value">${fmtMoney(buckets.mid)}</div>
+    </div>
+    <div class="summary-card bucket-warn">
+      <div class="card-label">${bucketLabel('high')}</div>
+      <div class="card-value">${fmtMoney(buckets.high)}</div>
+    </div>
+    <div class="summary-card bucket-bad">
+      <div class="card-label">${bucketLabel('over')}</div>
+      <div class="card-value">${fmtMoney(buckets.over)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="card-label">DSO (unpaid avg)</div>
+      <div class="card-value">${dsoCount ? dso.toFixed(1) : '0.0'} days</div>
+    </div>
+  `;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('invoicesBody');
+  tbody.innerHTML = INVOICES.map(inv => {
+    const s = statusInfo(inv);
+    return `
+      <tr data-id="${inv.id}">
+        <td>${inv.id}</td>
+        <td>${inv.client}</td>
+        <td>${fmtDate(inv.issueDate)}</td>
+        <td>${fmtDate(inv.dueDate)}</td>
+        <td class="num">${fmtMoney(inv.amount)}</td>
+        <td><span class="status-pill ${s.cls}">${s.label}</span></td>
+        <td><button class="pay-btn ${inv.paid ? 'is-paid' : ''}" data-id="${inv.id}">${inv.paid ? 'Mark unpaid' : 'Mark paid'}</button></td>
+      </tr>
+    `;
+  }).join('');
+
+  document.getElementById('resultCount').textContent =
+    `${INVOICES.length} invoices &middot; ${INVOICES.filter(i => !i.paid).length} unpaid`.replace('&middot;', '·');
+
+  tbody.querySelectorAll('.pay-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const inv = INVOICES.find(i => i.id === btn.dataset.id);
+      inv.paid = !inv.paid;
+      render();
+    });
+  });
+}
+
+function render() {
+  renderSummary();
+  renderTable();
+}
+
+function clientSummaries() {
+  const names = [...new Set(INVOICES.map(i => i.client))];
+  return names.map(name => {
+    const invoices = INVOICES.filter(i => i.client === name);
+    const totalInvoiced = invoices.reduce((sum, i) => sum + i.amount, 0);
+    const unpaid = invoices.filter(i => !i.paid);
+    const totalOutstanding = unpaid.reduce((sum, i) => sum + i.amount, 0);
+    const dsoSum = unpaid.reduce((sum, i) => sum + daysOverdue(i), 0);
+    const dso = unpaid.length ? dsoSum / unpaid.length : 0;
+    return { name, totalInvoiced, totalOutstanding, dso, unpaidCount: unpaid.length, invoiceCount: invoices.length };
+  }).sort((a, b) => b.totalOutstanding - a.totalOutstanding);
+}
+
+function renderClients() {
+  const container = document.getElementById('view-clients');
+  const clients = clientSummaries();
+
+  const rows = clients.map(c => `
+    <tr>
+      <td class="client-name">${c.name}</td>
+      <td class="num">${c.invoiceCount}</td>
+      <td class="num">${fmtMoney(c.totalInvoiced)}</td>
+      <td class="num">${fmtMoney(c.totalOutstanding)}</td>
+      <td class="num">${c.unpaidCount ? c.dso.toFixed(1) + ' days' : '&mdash;'}</td>
+    </tr>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="result-count">${clients.length} clients</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th class="num">Invoices</th>
+          <th class="num">Total invoiced</th>
+          <th class="num">Outstanding</th>
+          <th class="num">DSO (unpaid avg)</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function reportTotals() {
+  const totalInvoiced = INVOICES.reduce((sum, i) => sum + i.amount, 0);
+  const totalCollected = INVOICES.filter(i => i.paid).reduce((sum, i) => sum + i.amount, 0);
+  const totalOutstanding = INVOICES.filter(i => !i.paid).reduce((sum, i) => sum + i.amount, 0);
+  const collectionRate = totalInvoiced ? totalCollected / totalInvoiced : 0;
+  return { totalInvoiced, totalCollected, totalOutstanding, collectionRate };
+}
+
+function renderReports() {
+  const container = document.getElementById('view-reports');
+  const { totalInvoiced, totalCollected, totalOutstanding, collectionRate } = reportTotals();
+  const { buckets, dso, dsoCount } = computeAging();
+
+  container.innerHTML = `
+    <div class="section-title">Overview</div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="card-label">Total invoiced</div>
+        <div class="card-value">${fmtMoney(totalInvoiced)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="card-label">Total collected</div>
+        <div class="card-value">${fmtMoney(totalCollected)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="card-label">Total outstanding</div>
+        <div class="card-value">${fmtMoney(totalOutstanding)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="card-label">Collection rate</div>
+        <div class="card-value">${(collectionRate * 100).toFixed(1)}%</div>
+      </div>
+    </div>
+
+    <div class="section-title">Aging breakdown (unpaid)</div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="card-label">${bucketLabel('current')}</div>
+        <div class="card-value">${fmtMoney(buckets.current)}</div>
+      </div>
+      <div class="summary-card bucket-warn">
+        <div class="card-label">${bucketLabel('mid')}</div>
+        <div class="card-value">${fmtMoney(buckets.mid)}</div>
+      </div>
+      <div class="summary-card bucket-warn">
+        <div class="card-label">${bucketLabel('high')}</div>
+        <div class="card-value">${fmtMoney(buckets.high)}</div>
+      </div>
+      <div class="summary-card bucket-bad">
+        <div class="card-label">${bucketLabel('over')}</div>
+        <div class="card-value">${fmtMoney(buckets.over)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="card-label">DSO (unpaid avg)</div>
+        <div class="card-value">${dsoCount ? dso.toFixed(1) : '0.0'} days</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSettings() {
+  const panel = document.getElementById('view-settings');
+  panel.innerHTML = `
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Overdue threshold (days)</div>
+        <div class="settings-help">Boundary between the "1&ndash;N days overdue" and "N+1&ndash;M days overdue" buckets. Changes recompute the Invoices summary and Reports view live.</div>
+      </div>
+      <input type="number" id="midThreshold" class="settings-input" min="1" value="${state.thresholds.mid}">
+    </div>
+
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Severely overdue threshold (days)</div>
+        <div class="settings-help">Boundary between the mid bucket and the "M+ days overdue" bucket.</div>
+      </div>
+      <input type="number" id="highThreshold" class="settings-input" min="1" value="${state.thresholds.high}">
+    </div>
+
+    <div class="settings-confirm" id="thresholdConfirm"></div>
+  `;
+
+  function applyThresholds() {
+    let mid = parseInt(document.getElementById('midThreshold').value, 10);
+    let high = parseInt(document.getElementById('highThreshold').value, 10);
+    if (!Number.isFinite(mid) || mid < 1) mid = state.thresholds.mid;
+    if (!Number.isFinite(high) || high <= mid) high = mid + 1;
+    state.thresholds = { mid, high };
+    document.getElementById('thresholdConfirm').textContent =
+      `Buckets updated: 1–${mid}, ${mid + 1}–${high}, ${high + 1}+. Check Invoices or Reports to see the new totals.`;
+  }
+
+  document.getElementById('midThreshold').addEventListener('change', applyThresholds);
+  document.getElementById('highThreshold').addEventListener('change', applyThresholds);
+}
+
+function renderApp() {
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.toggle('active', link.dataset.view === state.view);
+  });
+
+  document.getElementById('view-invoices').style.display = state.view === 'invoices' ? 'block' : 'none';
+  document.getElementById('view-clients').style.display = state.view === 'clients' ? 'block' : 'none';
+  document.getElementById('view-reports').style.display = state.view === 'reports' ? 'block' : 'none';
+  document.getElementById('view-settings').style.display = state.view === 'settings' ? 'flex' : 'none';
+
+  const topbar = TOPBAR[state.view];
+  document.getElementById('topbarTitle').textContent = topbar.title;
+  document.getElementById('topbarSub').textContent = topbar.sub;
+
+  if (state.view === 'invoices') {
+    render();
+  } else if (state.view === 'clients') {
+    renderClients();
+  } else if (state.view === 'reports') {
+    renderReports();
+  } else if (state.view === 'settings') {
+    renderSettings();
+  }
+}
+
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    state.view = link.dataset.view;
+    renderApp();
+  });
+});
+
+renderApp();
+
+/* ---------------------------------------------------------------
+   Guided tour (Arcade-style spotlight + step caption)
+   --------------------------------------------------------------- */
+const TOOL_ICONS = {
+  make:     { name: 'Make.com', domain: 'make.com' },
+  airtable: { name: 'Airtable', domain: 'airtable.com' },
+  hubspot:  { name: 'HubSpot', domain: 'hubspot.com' }
+};
+
+const TOUR_STEPS = [
+  {
+    target: () => document.querySelector('.app-topbar h1'),
+    text: 'This is LedgerFlow — real AR aging as of today, not a screenshot of last month\'s numbers. Every total here recalculates from the invoice list live.',
+    before: () => { state.view = 'invoices'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="hubspot"]'),
+    tool: 'hubspot',
+    text: 'An invoice starts the moment a deal closes in HubSpot — that close is what triggers the invoice you\'re about to see get created and tracked here.'
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="make"]'),
+    tool: 'make',
+    text: 'Make.com generates the invoice itself and runs the reminder schedule — same-day sends, follow-ups on a clock, no one manually emailing a client about a late payment.'
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="airtable"]'),
+    tool: 'airtable',
+    text: 'Every invoice record lives in Airtable — this table and the aging math you\'re about to see both read from that same source, live.'
+  },
+  {
+    target: () => document.querySelector('.pay-btn[data-id="INV-1005"]'),
+    text: 'INV-1005, Talbot Logistics, $4,100, is 6 days overdue — sitting in the "1–30 days overdue" bucket, which currently totals $14,750. Click "Mark paid" and watch that bucket recalculate.',
+    before: () => { state.view = 'invoices'; renderApp(); },
+    action: () => { const btn = document.querySelector('.pay-btn[data-id="INV-1005"]'); if (btn && !btn.classList.contains('is-paid')) btn.click(); }
+  },
+  {
+    target: () => document.querySelectorAll('.summary-card')[1],
+    text: 'There it is: $14,750 dropped to $10,650 — the $4,100 from INV-1005 came straight out of the mid bucket. This is the actual array being filtered and summed, not a static label.'
+  },
+  {
+    target: () => document.querySelectorAll('.summary-card')[4],
+    text: 'The real rule: with thresholds of 30 and 60 days, an invoice is "Current" if it isn\'t past due yet, "1–30 days overdue" if 1–30 days late, "31–60 days overdue" next, and "61+ days overdue" beyond that. DSO is the average days-overdue across every unpaid invoice — sum the days, divide by the count.'
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="clients"]'),
+    text: 'Take INV-1009, Mendez Auto Group: due May 26, today is June 25 — that\'s 30 days overdue. 30 falls right at the mid/high boundary, so it lands in the "1–30 days overdue" bucket. Open Clients to see it rolled up per customer.',
+    action: () => { state.view = 'clients'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="settings"]'),
+    text: 'Mendez Auto Group shows $5,300 outstanding and a 30.0-day DSO — that\'s a single unpaid invoice, so its DSO is just that invoice\'s own days-overdue. Now to Settings, where these bucket boundaries are adjustable.',
+    action: () => { state.view = 'settings'; renderApp(); }
+  },
+  {
+    target: () => document.getElementById('midThreshold'),
+    text: 'Change the overdue threshold here — say from 30 to 20 days — and every invoice between 21 and 30 days overdue immediately reclassifies from the "1–30" bucket into the "31–60" bucket, shifting dollars between the Invoices summary and Reports without touching a single invoice record.'
+  }
+];
+
+let tourIndex = 0;
+let tourEls = null;
+
+function buildTourEls() {
+  if (tourEls) return tourEls;
+  const scrim = document.createElement('div');
+  scrim.className = 'tour-scrim';
+  const ring = document.createElement('div');
+  ring.className = 'tour-ring';
+  const card = document.createElement('div');
+  card.className = 'tour-card';
+  card.innerHTML = `
+    <div class="tour-step" id="tourStepLabel"></div>
+    <div class="tour-tool" id="tourTool" style="display:none;"></div>
+    <div class="tour-text" id="tourText"></div>
+    <div class="tour-controls">
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-nav-btns">
+        <button class="tour-skip" id="tourSkipBtn" type="button">Skip</button>
+        <button class="tour-next" id="tourNextBtn" type="button">Next</button>
+      </div>
+    </div>
+  `;
+  document.body.append(scrim, ring, card);
+  tourEls = { scrim, ring, card };
+  document.getElementById('tourSkipBtn').addEventListener('click', endTour);
+  document.getElementById('tourNextBtn').addEventListener('click', advanceTour);
+  return tourEls;
+}
+
+function positionTour(target) {
+  const { ring, card } = buildTourEls();
+  const r = target.getBoundingClientRect();
+  const pad = 6;
+  ring.style.top = (r.top - pad) + 'px';
+  ring.style.left = (r.left - pad) + 'px';
+  ring.style.width = (r.width + pad * 2) + 'px';
+  ring.style.height = (r.height + pad * 2) + 'px';
+
+  const cardWidth = 300;
+  let cardTop = r.bottom + 14;
+  let cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
+  if (cardTop + 140 > window.innerHeight) cardTop = Math.max(r.top - 160, 16);
+  card.style.top = cardTop + 'px';
+  card.style.left = cardLeft + 'px';
+}
+
+function runTourStep(index) {
+  const step = TOUR_STEPS[index];
+  if (!step) return endTour();
+  if (step.before) step.before();
+  if (step.action) step.action();
+
+  setTimeout(() => {
+    const target = step.target();
+    if (!target) return advanceTour();
+    target.scrollIntoView({ block: 'nearest' });
+    positionTour(target);
+
+    document.getElementById('tourStepLabel').textContent = `Step ${index + 1} of ${TOUR_STEPS.length}`;
+    const toolEl = document.getElementById('tourTool');
+    if (step.tool && TOOL_ICONS[step.tool]) {
+      const t = TOOL_ICONS[step.tool];
+      toolEl.style.display = 'flex';
+      toolEl.innerHTML = `<img src="https://www.google.com/s2/favicons?domain=${t.domain}&sz=32" alt=""> Powered by ${t.name}`;
+    } else {
+      toolEl.style.display = 'none';
+      toolEl.innerHTML = '';
+    }
+    document.getElementById('tourText').textContent = step.text;
+    document.getElementById('tourNextBtn').textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+    document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) =>
+      `<span class="tour-dot ${i === index ? 'current' : ''}"></span>`).join('');
+  });
+}
+
+function advanceTour() {
+  tourIndex += 1;
+  if (tourIndex >= TOUR_STEPS.length) return endTour();
+  runTourStep(tourIndex);
+}
+
+function startTour() {
+  tourIndex = 0;
+  buildTourEls();
+  tourEls.scrim.classList.add('active');
+  runTourStep(0);
+}
+
+function endTour() {
+  if (!tourEls) return;
+  tourEls.scrim.classList.remove('active');
+  tourEls.ring.style.width = '0px';
+  tourEls.ring.style.height = '0px';
+  tourEls.card.style.top = '-9999px';
+}
+
+document.getElementById('tourBtn').addEventListener('click', startTour);
+window.addEventListener('resize', () => {
+  if (tourEls && tourEls.scrim.classList.contains('active')) positionTour(TOUR_STEPS[tourIndex].target());
+});
+</script>
+
+</body>
+</html>

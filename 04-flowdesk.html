@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowDesk — Project &amp; Service Delivery Board</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  :root {
+    --accent: #5b21b6;
+  }
+
+  .board-layout {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    gap: 0;
+  }
+
+  .kanban-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+  }
+
+  .col-sort-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .col-sort-btn:hover { border-color: var(--accent); color: var(--text); }
+
+  .col-sort-btn .sort-arrow {
+    font-size: 9px;
+    opacity: 0.5;
+  }
+
+  .col-sort-btn.sort-asc .sort-arrow,
+  .col-sort-btn.sort-desc .sort-arrow {
+    opacity: 1;
+    color: var(--accent);
+  }
+
+  .card-due {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .card-due.overdue { color: #b3261e; font-weight: 600; }
+
+  .card-sop {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  .kanban-card.selected {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+
+  .detail-panel {
+    flex: 0 0 340px;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  @media (max-width: 900px) {
+    .board-layout { flex-direction: column; height: auto; }
+    .detail-panel {
+      flex: 0 0 auto;
+      width: 100%;
+      border-left: none;
+      border-top: 1px solid var(--border);
+      max-height: 70vh;
+    }
+  }
+
+  .detail-panel.empty {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .detail-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .detail-header .title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .detail-header .sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .detail-body {
+    padding: 18px 20px;
+    flex: 1;
+  }
+
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .detail-row:last-of-type { border-bottom: none; }
+
+  .detail-row .label { color: var(--muted); }
+  .detail-row .value { color: var(--text); font-weight: 500; }
+
+  .sop-box {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .sop-box .label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .sop-box .sop-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .draft-btn {
+    margin-top: 16px;
+    width: 100%;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 9px 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .draft-btn:hover { opacity: 0.92; }
+
+  .draft-output {
+    margin-top: 14px;
+    padding: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+
+  .draft-output .label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  /* SOP Library view */
+  .sop-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .sop-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+
+  .sop-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  .sop-card-head h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .sop-card-summary {
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Clients view */
+  .client-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .client-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+
+  .client-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .client-card-head h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .client-status-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .client-status-chip {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+
+  .client-status-chip strong {
+    color: var(--text);
+  }
+
+  /* Settings view */
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    max-width: 520px;
+  }
+
+  .settings-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .settings-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .toggle-switch {
+    position: relative;
+    flex: 0 0 auto;
+    width: 40px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--border);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .toggle-switch.on {
+    background: var(--accent);
+  }
+
+  .toggle-switch .knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s ease;
+  }
+
+  .toggle-switch.on .knob {
+    transform: translateX(18px);
+  }
+
+  .kanban-card.overdue-flag {
+    border-color: #b3261e;
+    box-shadow: inset 0 0 0 1px #b3261e;
+  }
+
+  .overdue-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #b3261e;
+    border: 1px solid #b3261e;
+    border-radius: 999px;
+    padding: 1px 6px;
+    margin-top: 6px;
+  }
+
+  /* ---------------------------------------------------------------
+     Guided tour (Arcade-style spotlight + step caption)
+     --------------------------------------------------------------- */
+  .tour-btn {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    flex: 0 0 auto;
+  }
+
+  .tour-btn:hover { opacity: 0.92; }
+
+  .tour-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 200;
+    display: none;
+  }
+
+  .tour-scrim.active { display: block; }
+
+  .tour-ring {
+    position: fixed;
+    z-index: 201;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 24px rgba(0,0,0,0.5);
+    pointer-events: none;
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  }
+
+  .tour-card {
+    position: fixed;
+    z-index: 202;
+    width: min(300px, calc(100vw - 32px));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    padding: 16px;
+    transition: top 0.25s ease, left 0.25s ease;
+  }
+
+  .tour-card .tour-step {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .tour-card .tour-tool {
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px 3px 6px;
+    margin-bottom: 10px;
+    width: fit-content;
+  }
+
+  .tour-card .tour-tool img {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+
+  .tour-card .tour-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .tour-card .tour-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tour-card .tour-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .tour-card .tour-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .tour-card .tour-dot.current { background: var(--accent); }
+
+  .tour-card .tour-nav-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .tour-card button.tour-next {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .tour-card button.tour-skip {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 6px 4px;
+  }
+
+  .tour-card button.tour-skip:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <a href="index.html" class="back-link"><span class="back-arrow">←</span> All apps</a>
+    <div class="logo"><span class="logo-dot"></span> FlowDesk</div>
+    <nav class="app-nav">
+      <a href="#" class="nav-link active" data-view="tasks">Tasks</a>
+      <a href="#" class="nav-link" data-view="sops">SOP Library</a>
+      <a href="#" class="nav-link" data-view="clients">Clients</a>
+      <a href="#" class="nav-link" data-view="settings">Settings</a>
+    </nav>
+    <div class="app-sidebar-footer">
+      <div class="footer-label">Built on</div>
+      <div class="tool-badge-row">
+        <span class="badge-tool" data-tool="clickup"><img src="https://www.google.com/s2/favicons?domain=clickup.com&sz=32" alt=""> ClickUp</span>
+        <span class="badge-tool" data-tool="notion"><img src="https://www.google.com/s2/favicons?domain=notion.so&sz=32" alt=""> Notion</span>
+        <span class="badge-tool" data-tool="claude"><img src="https://www.google.com/s2/favicons?domain=anthropic.com&sz=32" alt=""> Claude</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="app-main">
+    <div class="app-topbar">
+      <div>
+        <h1 id="topbarTitle">Task Board</h1>
+        <div class="topbar-sub" id="topbarSub">Drag tasks between stages — click a task for SOP context and a first-draft response</div>
+      </div>
+      <button class="tour-btn" id="tourBtn" type="button">▶ Take the tour</button>
+    </div>
+
+    <div id="view-tasks" class="app-content" style="padding: 0;">
+      <div class="board-layout">
+        <div class="kanban-wrap" style="padding: 24px;">
+          <div class="kanban" id="kanban"></div>
+        </div>
+
+        <aside class="detail-panel empty" id="detailPanel">
+          Select a task to view details and draft a first pass.
+        </aside>
+      </div>
+    </div>
+
+    <div id="view-sops" class="app-content" style="display:none;"></div>
+
+    <div id="view-clients" class="app-content" style="display:none;"></div>
+
+    <div id="view-settings" class="app-content" style="display:none;"></div>
+  </main>
+</div>
+
+<script>
+const STATUSES = ['Backlog', 'In Progress', 'Review', 'Done'];
+
+const SOPS = [
+  { id: 'sop-onboarding', title: 'Client Onboarding Checklist', summary: 'Confirm contract is signed, create the shared workspace, schedule the kickoff call, and send the welcome packet within 24 hours of signature.' },
+  { id: 'sop-content-calendar', title: 'Monthly Content Calendar Build', summary: 'Pull last month\'s top-performing posts, draft a 30-day calendar by channel, and route it for client approval before any asset work begins.' },
+  { id: 'sop-automation-build', title: 'Automation Build & QA', summary: 'Map the manual process end to end, build the workflow in a sandbox environment, run three test cases with real data, then promote to production.' },
+  { id: 'sop-reporting', title: 'Monthly Reporting Package', summary: 'Export data from each connected source, reconcile totals against the source system, and write a two-paragraph plain-English summary before sending.' },
+  { id: 'sop-review-qa', title: 'Deliverable Review & QA', summary: 'Check the deliverable against the original brief line by line, test on a second device or account, and log any deviations before marking ready for client review.' }
+];
+
+const TASKS = [
+  { id: 1,  title: 'Set up client workspace in Notion',        assignee: 'Dana Reyes',   client: 'Romero Dental Group',     due: '2026-06-26', status: 'Backlog',     sopLink: 'sop-content-calendar' },
+  { id: 2,  title: 'Draft kickoff call agenda',                 assignee: 'Marco Lin',    client: 'Harborview Logistics',    due: '2026-06-27', status: 'Backlog',     sopLink: 'sop-automation-build' },
+  { id: 3,  title: 'Build July content calendar',                assignee: 'Sasha Cole',   client: 'Sunline Realty Partners', due: '2026-06-28', status: 'Backlog',     sopLink: 'sop-content-calendar' },
+  { id: 4,  title: 'Map manual invoice-chase workflow',           assignee: 'Priya Nair',   client: 'Brightleaf Wellness Studio', due: '2026-06-24', status: 'In Progress', sopLink: 'sop-automation-build' },
+  { id: 5,  title: 'Build lead-routing automation in sandbox',    assignee: 'Marco Lin',    client: 'Harborview Logistics',    due: '2026-06-25', status: 'In Progress', sopLink: 'sop-automation-build' },
+  { id: 6,  title: 'Pull May performance data for report',        assignee: 'Dana Reyes',   client: 'Romero Dental Group',     due: '2026-06-23', status: 'In Progress', sopLink: 'sop-reporting' },
+  { id: 7,  title: 'Reconcile QuickBooks totals for client report', assignee: 'Owen Brackett', client: 'Sunline Realty Partners', due: '2026-06-22', status: 'In Progress', sopLink: 'sop-reporting' },
+  { id: 8,  title: 'Run QA on appointment reminder workflow',     assignee: 'Sasha Cole',   client: 'Brightleaf Wellness Studio', due: '2026-06-21', status: 'Review',      sopLink: 'sop-review-qa' },
+  { id: 9,  title: 'Review June content calendar with client',    assignee: 'Priya Nair',   client: 'Sunline Realty Partners', due: '2026-06-20', status: 'Review',      sopLink: 'sop-content-calendar' },
+  { id: 10, title: 'Test new client onboarding flow end to end',  assignee: 'Owen Brackett', client: 'Romero Dental Group',     due: '2026-06-19', status: 'Review',      sopLink: 'sop-review-qa' },
+  { id: 11, title: 'Send finished May reporting package',         assignee: 'Dana Reyes',   client: 'Romero Dental Group',     due: '2026-06-15', status: 'Done',        sopLink: 'sop-reporting' },
+  { id: 12, title: 'Promote dispatch automation to production',   assignee: 'Marco Lin',    client: 'Harborview Logistics',    due: '2026-06-12', status: 'Done',        sopLink: 'sop-automation-build' },
+  { id: 13, title: 'Close out April content calendar review',     assignee: 'Sasha Cole',   client: 'Sunline Realty Partners', due: '2026-06-10', status: 'Done',        sopLink: 'sop-content-calendar' },
+  { id: 14, title: 'Finalize onboarding packet for new client',   assignee: 'Priya Nair',   client: 'Brightleaf Wellness Studio', due: '2026-06-08', status: 'Done',        sopLink: 'sop-content-calendar' },
+  { id: 15, title: 'QA the patient intake bot before go-live',    assignee: 'Owen Brackett', client: 'Brightleaf Wellness Studio', due: '2026-06-29', status: 'Backlog',     sopLink: 'sop-review-qa' }
+];
+
+const CLIENTS = [...new Set(TASKS.map(t => t.client))];
+
+const colSort = {}; // status -> 'asc' | 'desc' | null
+STATUSES.forEach(s => colSort[s] = null);
+
+const TODAY = new Date('2026-06-25');
+
+const state = {
+  view: 'tasks',
+  highlightOverdue: false
+};
+
+let draggedId = null;
+let selectedId = null;
+
+function tasksForStatus(status) {
+  let tasks = TASKS.filter(t => t.status === status);
+  const dir = colSort[status];
+  if (dir) {
+    tasks = tasks.slice().sort((a, b) => {
+      const diff = new Date(a.due) - new Date(b.due);
+      return dir === 'asc' ? diff : -diff;
+    });
+  }
+  return tasks;
+}
+
+function isOverdue(dueStr, status) {
+  return status !== 'Done' && new Date(dueStr) < TODAY;
+}
+
+function formatDate(dueStr) {
+  const d = new Date(dueStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function render() {
+  const kanban = document.getElementById('kanban');
+
+  kanban.innerHTML = STATUSES.map(status => {
+    const tasks = tasksForStatus(status);
+    const dir = colSort[status];
+    const arrow = dir === 'asc' ? '&#9650;' : dir === 'desc' ? '&#9660;' : '&#9650;';
+    const sortClass = dir === 'asc' ? 'sort-asc' : dir === 'desc' ? 'sort-desc' : '';
+
+    return `
+      <div class="kanban-col" data-status="${status}">
+        <div class="kanban-col-header">
+          <div class="col-title">${status} <span class="kanban-col-count">(${tasks.length})</span></div>
+          <button class="col-sort-btn ${sortClass}" data-status="${status}">
+            Due date <span class="sort-arrow">${arrow}</span>
+          </button>
+        </div>
+        <div class="kanban-col-body" data-status="${status}">
+          ${tasks.map(t => {
+            const overdue = isOverdue(t.due, t.status);
+            return `
+            <div class="kanban-card ${t.id === selectedId ? 'selected' : ''} ${state.highlightOverdue && overdue ? 'overdue-flag' : ''}" draggable="true" data-id="${t.id}">
+              <div class="card-title">${t.title}</div>
+              <div class="card-meta">
+                <span>${t.assignee}</span>
+                <span class="card-due ${overdue ? 'overdue' : ''}">${formatDate(t.due)}</span>
+              </div>
+              <div class="card-sop">${SOPS.find(s => s.id === t.sopLink)?.title ?? ''}</div>
+              ${state.highlightOverdue && overdue ? '<span class="overdue-tag">Overdue</span>' : ''}
+            </div>
+          `;}).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  attachCardHandlers();
+  attachDragHandlers();
+  attachSortHandlers();
+}
+
+function attachCardHandlers() {
+  document.querySelectorAll('.kanban-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const id = Number(card.dataset.id);
+      selectedId = selectedId === id ? null : id;
+      render();
+      renderDetail();
+    });
+  });
+}
+
+function attachSortHandlers() {
+  document.querySelectorAll('.col-sort-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const status = btn.dataset.status;
+      colSort[status] = colSort[status] === 'asc' ? 'desc' : 'asc';
+      render();
+    });
+  });
+}
+
+function attachDragHandlers() {
+  document.querySelectorAll('.kanban-card').forEach(card => {
+    card.addEventListener('dragstart', (e) => {
+      draggedId = Number(card.dataset.id);
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      draggedId = null;
+    });
+  });
+
+  document.querySelectorAll('.kanban-col').forEach(col => {
+    col.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      col.classList.add('drag-over');
+    });
+    col.addEventListener('dragleave', () => {
+      col.classList.remove('drag-over');
+    });
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      if (draggedId == null) return;
+
+      const targetStatus = col.dataset.status;
+      const task = TASKS.find(t => t.id === draggedId);
+      if (task && task.status !== targetStatus) {
+        task.status = targetStatus;
+      }
+      draggedId = null;
+      render();
+    });
+  });
+}
+
+function draftFirstPass(task, sop) {
+  const stageNote = task.status === 'Backlog'
+    ? `Before starting, the relevant playbook is "${sop.title}" — worth a quick read so the first pass follows the same steps every time.`
+    : task.status === 'In Progress'
+      ? `Picking this up mid-flight, so checking it against "${sop.title}" now to make sure nothing in that process got skipped.`
+      : task.status === 'Review'
+        ? `This is in review, so the next step is verifying it against "${sop.title}" line by line before sign-off.`
+        : `This one's marked done — logging it as a completed pass against "${sop.title}" for the record.`;
+
+  return `First pass: ${task.title}\n\nAssigned to ${task.assignee}, due ${formatDate(task.due)}.\n\n${stageNote}\n\nReference SOP — ${sop.title}:\n"${sop.summary}"\n\nNext action: confirm each step in the SOP above has been completed for this task before moving it to the next stage.`;
+}
+
+function renderDetail() {
+  const panel = document.getElementById('detailPanel');
+  const task = TASKS.find(t => t.id === selectedId);
+
+  if (!task) {
+    panel.classList.add('empty');
+    panel.innerHTML = 'Select a task to view details and draft a first pass.';
+    return;
+  }
+
+  const sop = SOPS.find(s => s.id === task.sopLink);
+
+  panel.classList.remove('empty');
+  panel.innerHTML = `
+    <div class="detail-header">
+      <div class="title">${task.title}</div>
+      <div class="sub">${task.assignee} &middot; ${task.status}</div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-row"><span class="label">Assignee</span><span class="value">${task.assignee}</span></div>
+      <div class="detail-row"><span class="label">Due</span><span class="value ${isOverdue(task.due, task.status) ? 'card-due overdue' : ''}">${formatDate(task.due)}</span></div>
+      <div class="detail-row"><span class="label">Status</span><span class="value">${task.status}</span></div>
+
+      <div class="sop-box">
+        <span class="label">Linked SOP</span>
+        <div class="sop-title">${sop ? sop.title : 'None'}</div>
+        ${sop ? sop.summary : ''}
+      </div>
+
+      <button class="draft-btn" id="draftBtn">Draft first pass</button>
+      <div id="draftHolder"></div>
+    </div>
+  `;
+
+  document.getElementById('draftBtn').addEventListener('click', () => {
+    const holder = document.getElementById('draftHolder');
+    holder.innerHTML = `
+      <div class="draft-output">
+        <span class="label">Draft</span>
+        ${draftFirstPass(task, sop)}
+      </div>
+    `;
+  });
+}
+
+function renderSops() {
+  const container = document.getElementById('view-sops');
+
+  container.innerHTML = `
+    <div class="sop-list">
+      ${SOPS.map(sop => {
+        const count = TASKS.filter(t => t.sopLink === sop.id).length;
+        return `
+          <div class="sop-card">
+            <div class="sop-card-head">
+              <h3>${sop.title}</h3>
+              <span class="badge">${count} linked task${count === 1 ? '' : 's'}</span>
+            </div>
+            <div class="sop-card-summary">${sop.summary}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderClients() {
+  const container = document.getElementById('view-clients');
+
+  container.innerHTML = `
+    <div class="client-grid">
+      ${CLIENTS.map(client => {
+        const clientTasks = TASKS.filter(t => t.client === client);
+        return `
+          <div class="client-card">
+            <div class="client-card-head">
+              <h3>${client}</h3>
+              <span class="badge">${clientTasks.length} total task${clientTasks.length === 1 ? '' : 's'}</span>
+            </div>
+            <div class="client-status-row">
+              ${STATUSES.map(status => {
+                const n = clientTasks.filter(t => t.status === status).length;
+                return `<span class="client-status-chip">${status}: <strong>${n}</strong></span>`;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderSettings() {
+  const container = document.getElementById('view-settings');
+
+  container.innerHTML = `
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Highlight overdue tasks</div>
+        <div class="settings-sub">Flags any task past its due date (and not Done) with a red border and tag on the board</div>
+      </div>
+      <button class="toggle-switch ${state.highlightOverdue ? 'on' : ''}" id="overdueToggle">
+        <span class="knob"></span>
+      </button>
+    </div>
+  `;
+
+  document.getElementById('overdueToggle').addEventListener('click', () => {
+    state.highlightOverdue = !state.highlightOverdue;
+    renderSettings();
+    render();
+  });
+}
+
+function renderApp() {
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.toggle('active', link.dataset.view === state.view);
+  });
+
+  document.getElementById('view-tasks').style.display = state.view === 'tasks' ? '' : 'none';
+  document.getElementById('view-sops').style.display = state.view === 'sops' ? '' : 'none';
+  document.getElementById('view-clients').style.display = state.view === 'clients' ? '' : 'none';
+  document.getElementById('view-settings').style.display = state.view === 'settings' ? '' : 'none';
+
+  const titles = {
+    tasks: 'Task Board',
+    sops: 'SOP Library',
+    clients: 'Clients',
+    settings: 'Settings'
+  };
+  const subs = {
+    tasks: 'Drag tasks between stages — click a task for SOP context and a first-draft response',
+    sops: 'Every standard operating procedure, with how many current tasks reference it',
+    clients: 'Active clients with live task counts by stage',
+    settings: 'Board-wide display behavior'
+  };
+  document.getElementById('topbarTitle').textContent = titles[state.view];
+  document.getElementById('topbarSub').textContent = subs[state.view];
+
+  if (state.view === 'tasks') {
+    render();
+    renderDetail();
+  } else if (state.view === 'sops') {
+    renderSops();
+  } else if (state.view === 'clients') {
+    renderClients();
+  } else if (state.view === 'settings') {
+    renderSettings();
+  }
+}
+
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    state.view = link.dataset.view;
+    renderApp();
+  });
+});
+
+renderApp();
+
+/* ---------------------------------------------------------------
+   Guided tour (Arcade-style spotlight + step caption)
+   --------------------------------------------------------------- */
+const TOOL_ICONS = {
+  clickup: { name: 'ClickUp', domain: 'clickup.com' },
+  notion:  { name: 'Notion', domain: 'notion.so' },
+  claude:  { name: 'Claude', domain: 'anthropic.com' }
+};
+
+const TOUR_STEPS = [
+  {
+    target: () => document.querySelector('.app-topbar h1'),
+    text: 'This is FlowDesk — a real task board your team works from, not a status meeting replacement. Every card here is live work, tied to an SOP and a client.',
+    before: () => { state.view = 'tasks'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="clickup"]'),
+    tool: 'clickup',
+    text: 'This board runs on ClickUp under the hood — the same task data, drag-and-drop, and stage logic you\'d see in a real ClickUp workspace, not a separate tool to keep in sync.'
+  },
+  {
+    target: () => document.querySelector('.kanban-card[data-id="4"]'),
+    text: 'Drag any card between columns to move it through the workflow. Watch this card — "Map manual invoice-chase workflow" — move from In Progress to Review, and the column counts update with it.',
+    before: () => { state.view = 'tasks'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="notion"]'),
+    tool: 'notion',
+    text: 'Every SOP referenced on this board lives as a real document in Notion — the link you\'re about to see isn\'t a label, it points at the actual standard your team follows.'
+  },
+  {
+    target: () => document.querySelector('.kanban-card[data-id="4"]'),
+    text: `Each card carries a real link to an SOP. "Map manual invoice-chase workflow" links to "Automation Build & QA" — click it, then Draft first pass, and it pulls that SOP's actual wording in: "Picking this up mid-flight, so checking it against \\"Automation Build & QA\\" now to make sure nothing in that process got skipped." That's not a generic template, it's built from this task's real status and its linked SOP.`,
+    tool: 'claude',
+    action: () => {
+      const task = TASKS.find(t => t.id === 4);
+      if (task) task.status = 'Review';
+      selectedId = 4;
+      render();
+      renderDetail();
+    }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="sops"]'),
+    text: '"Monthly Content Calendar Build" currently has 4 linked tasks — that count comes straight from the task board, it updates the moment a task\'s SOP link changes.',
+    action: () => { state.view = 'sops'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="clients"]'),
+    text: 'Romero Dental Group has 1 task in Backlog, 1 In Progress, 1 in Review, and 1 Done — a live breakdown, not a manually updated spreadsheet.',
+    action: () => { state.view = 'clients'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="settings"]'),
+    text: 'The overdue toggle flags any task where the due date has passed and the status isn\'t Done — flip it on and the board redraws every late card with a red border and an Overdue tag immediately.',
+    action: () => { state.view = 'settings'; renderApp(); }
+  }
+];
+
+let tourIndex = 0;
+let tourEls = null;
+
+function buildTourEls() {
+  if (tourEls) return tourEls;
+  const scrim = document.createElement('div');
+  scrim.className = 'tour-scrim';
+  const ring = document.createElement('div');
+  ring.className = 'tour-ring';
+  const card = document.createElement('div');
+  card.className = 'tour-card';
+  card.innerHTML = `
+    <div class="tour-step" id="tourStepLabel"></div>
+    <div class="tour-tool" id="tourTool" style="display:none;"></div>
+    <div class="tour-text" id="tourText"></div>
+    <div class="tour-controls">
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-nav-btns">
+        <button class="tour-skip" id="tourSkipBtn" type="button">Skip</button>
+        <button class="tour-next" id="tourNextBtn" type="button">Next</button>
+      </div>
+    </div>
+  `;
+  document.body.append(scrim, ring, card);
+  tourEls = { scrim, ring, card };
+  document.getElementById('tourSkipBtn').addEventListener('click', endTour);
+  document.getElementById('tourNextBtn').addEventListener('click', advanceTour);
+  return tourEls;
+}
+
+function positionTour(target) {
+  const { ring, card } = buildTourEls();
+  const r = target.getBoundingClientRect();
+  const pad = 6;
+  ring.style.top = (r.top - pad) + 'px';
+  ring.style.left = (r.left - pad) + 'px';
+  ring.style.width = (r.width + pad * 2) + 'px';
+  ring.style.height = (r.height + pad * 2) + 'px';
+
+  const cardWidth = 300;
+  let cardTop = r.bottom + 14;
+  let cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
+  if (cardTop + 140 > window.innerHeight) cardTop = Math.max(r.top - 160, 16);
+  card.style.top = cardTop + 'px';
+  card.style.left = cardLeft + 'px';
+}
+
+function runTourStep(index) {
+  const step = TOUR_STEPS[index];
+  if (!step) return endTour();
+  if (step.before) step.before();
+  if (step.action) step.action();
+
+  setTimeout(() => {
+    const target = step.target();
+    if (!target) return advanceTour();
+    target.scrollIntoView({ block: 'nearest' });
+    positionTour(target);
+
+    document.getElementById('tourStepLabel').textContent = `Step ${index + 1} of ${TOUR_STEPS.length}`;
+    const toolEl = document.getElementById('tourTool');
+    if (step.tool && TOOL_ICONS[step.tool]) {
+      const t = TOOL_ICONS[step.tool];
+      toolEl.style.display = 'flex';
+      toolEl.innerHTML = `<img src="https://www.google.com/s2/favicons?domain=${t.domain}&sz=32" alt=""> Powered by ${t.name}`;
+    } else {
+      toolEl.style.display = 'none';
+      toolEl.innerHTML = '';
+    }
+    document.getElementById('tourText').textContent = step.text;
+    document.getElementById('tourNextBtn').textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+    document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) =>
+      `<span class="tour-dot ${i === index ? 'current' : ''}"></span>`).join('');
+  });
+}
+
+function advanceTour() {
+  tourIndex += 1;
+  if (tourIndex >= TOUR_STEPS.length) return endTour();
+  runTourStep(tourIndex);
+}
+
+function startTour() {
+  tourIndex = 0;
+  buildTourEls();
+  tourEls.scrim.classList.add('active');
+  runTourStep(0);
+}
+
+function endTour() {
+  if (!tourEls) return;
+  tourEls.scrim.classList.remove('active');
+  tourEls.ring.style.width = '0px';
+  tourEls.ring.style.height = '0px';
+  tourEls.card.style.top = '-9999px';
+}
+
+document.getElementById('tourBtn').addEventListener('click', startTour);
+window.addEventListener('resize', () => {
+  if (tourEls && tourEls.scrim.classList.contains('active')) positionTour(TOUR_STEPS[tourIndex].target());
+});
+</script>
+
+</body>
+</html>

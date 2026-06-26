@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadPilot — Lead Scoring &amp; Outreach</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  :root {
+    --accent: #2f6fed;
+  }
+
+  .leadpilot-layout {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .table-col {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .score-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  .score-high { background: rgba(34,197,94,0.14); color: #4ade80; }
+  .score-mid  { background: rgba(245,158,11,0.14); color: #fbbf24; }
+  .score-low  { background: rgba(239,68,68,0.14); color: #f87171; }
+
+  .status-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--bg);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .status-New { color: #6fa3ff; border-color: rgba(111,163,255,0.3); background: rgba(111,163,255,0.12); }
+  .status-Contacted { color: #fbbf24; border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.12); }
+  .status-Qualified { color: #4ade80; border-color: rgba(74,222,128,0.3); background: rgba(74,222,128,0.12); }
+
+  .detail-panel {
+    flex: 0 0 340px;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  @media (max-width: 900px) {
+    .leadpilot-layout { flex-direction: column; height: auto; }
+    .detail-panel {
+      flex: 0 0 auto;
+      width: 100%;
+      border-left: none;
+      border-top: 1px solid var(--border);
+      max-height: 70vh;
+    }
+  }
+
+  .detail-panel.empty {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .detail-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .detail-header .name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .detail-header .role {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .detail-body {
+    padding: 18px 20px;
+    flex: 1;
+  }
+
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .detail-row:last-of-type { border-bottom: none; }
+
+  .detail-row .label { color: var(--muted); }
+  .detail-row .value { color: var(--text); font-weight: 500; }
+
+  .detail-message {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .detail-message .label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .generate-btn {
+    margin-top: 16px;
+    width: 100%;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 9px 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .generate-btn:hover { opacity: 0.92; }
+
+  .draft-output {
+    margin-top: 14px;
+    padding: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+
+  .draft-output .label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .result-count {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  /* ---------------------------------------------------------------
+     Sources view
+     --------------------------------------------------------------- */
+  .sources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  .source-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 16px;
+  }
+
+  .source-card .source-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .source-card .source-meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .source-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .source-stat-row .label { color: var(--muted); }
+  .source-stat-row .value { color: var(--text); font-weight: 500; }
+
+  /* ---------------------------------------------------------------
+     Settings view
+     --------------------------------------------------------------- */
+  .settings-panel {
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .settings-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .settings-row .settings-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .settings-row .settings-help {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .settings-control select,
+  .settings-control input[type="number"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    padding: 6px 10px;
+  }
+
+  .settings-control input[type="number"] {
+    width: 70px;
+    text-align: right;
+  }
+
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 22px;
+    flex: 0 0 auto;
+  }
+
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    transition: background 0.15s ease;
+  }
+
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    top: 2px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  .toggle-switch input:checked + .toggle-slider {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(16px);
+    background: var(--accent-contrast);
+  }
+
+  .reset-btn {
+    align-self: flex-start;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .settings-confirm {
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  /* ---------------------------------------------------------------
+     Guided tour (Arcade-style spotlight + step caption)
+     --------------------------------------------------------------- */
+  .tour-btn {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    flex: 0 0 auto;
+  }
+
+  .tour-btn:hover { opacity: 0.92; }
+
+  .tour-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 200;
+    display: none;
+  }
+
+  .tour-scrim.active { display: block; }
+
+  .tour-ring {
+    position: fixed;
+    z-index: 201;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 24px rgba(0,0,0,0.5);
+    pointer-events: none;
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  }
+
+  .tour-card {
+    position: fixed;
+    z-index: 202;
+    width: min(300px, calc(100vw - 32px));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    padding: 16px;
+    transition: top 0.25s ease, left 0.25s ease;
+  }
+
+  .tour-card .tour-step {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .tour-card .tour-tool {
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px 3px 6px;
+    margin-bottom: 10px;
+    width: fit-content;
+  }
+
+  .tour-card .tour-tool img {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+
+  .tour-card .tour-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .tour-card .tour-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tour-card .tour-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .tour-card .tour-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .tour-card .tour-dot.current { background: var(--accent); }
+
+  .tour-card .tour-nav-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .tour-card button.tour-next {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .tour-card button.tour-skip {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 6px 4px;
+  }
+
+  .tour-card button.tour-skip:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <a href="index.html" class="back-link"><span class="back-arrow">←</span> All apps</a>
+    <div class="logo"><span class="logo-dot"></span> LeadPilot</div>
+    <nav class="app-nav">
+      <a href="#" class="nav-link active" data-view="leads">Leads</a>
+      <a href="#" class="nav-link" data-view="sources">Sources</a>
+      <a href="#" class="nav-link" data-view="settings">Settings</a>
+    </nav>
+    <div class="app-sidebar-footer">
+      <div class="footer-label">Built on</div>
+      <div class="tool-badge-row">
+        <span class="badge-tool" data-tool="webflow"><img src="https://www.google.com/s2/favicons?domain=webflow.com&sz=32" alt=""> Webflow</span>
+        <span class="badge-tool" data-tool="make"><img src="https://www.google.com/s2/favicons?domain=make.com&sz=32" alt=""> Make.com</span>
+        <span class="badge-tool" data-tool="claude"><img src="https://www.google.com/s2/favicons?domain=anthropic.com&sz=32" alt=""> Claude</span>
+        <span class="badge-tool" data-tool="hubspot"><img src="https://www.google.com/s2/favicons?domain=hubspot.com&sz=32" alt=""> HubSpot</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="app-main">
+    <div class="app-topbar">
+      <div>
+        <h1 id="topbarTitle">Leads</h1>
+        <div class="topbar-sub" id="topbarSub">Inbound &amp; sourced leads, scored and ready to work</div>
+      </div>
+      <button class="tour-btn" id="tourBtn" type="button">▶ Take the tour</button>
+    </div>
+
+    <div class="app-content">
+      <div class="leadpilot-layout" id="view-leads">
+        <div class="table-col">
+          <div class="filter-bar">
+            <button class="filter-chip active" data-status="All">All</button>
+            <button class="filter-chip" data-status="New">New</button>
+            <button class="filter-chip" data-status="Contacted">Contacted</button>
+            <button class="filter-chip" data-status="Qualified">Qualified</button>
+            <input type="text" class="search-input" id="searchInput" placeholder="Search name or company...">
+          </div>
+
+          <div class="result-count" id="resultCount"></div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th><button class="sort-btn" data-key="name">Name <span class="sort-arrow">&#9650;</span></button></th>
+                <th><button class="sort-btn" data-key="company">Company <span class="sort-arrow">&#9650;</span></button></th>
+                <th><button class="sort-btn" data-key="source">Source <span class="sort-arrow">&#9650;</span></button></th>
+                <th class="num"><button class="sort-btn" data-key="score">Score <span class="sort-arrow">&#9650;</span></button></th>
+                <th><button class="sort-btn" data-key="status">Status <span class="sort-arrow">&#9650;</span></button></th>
+              </tr>
+            </thead>
+            <tbody id="leadsBody"></tbody>
+          </table>
+        </div>
+
+        <aside class="detail-panel empty" id="detailPanel">
+          Select a lead to view details and generate a follow-up.
+        </aside>
+      </div>
+
+      <div class="sources-grid" id="view-sources" style="display:none;"></div>
+
+      <div class="settings-panel" id="view-settings" style="display:none;"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const LEADS = [
+  { id: 1, name: 'Marcus Hale', company: 'BrightWorks Studio', title: 'Operations Manager', source: 'Webflow Form', score: 88, status: 'New', message: 'Looking for help automating our project intake process. We get overwhelmed during peak season.' },
+  { id: 2, name: 'Priya Nair', company: 'Coastal Outfitters', title: 'Owner', source: 'Referral', score: 92, status: 'Qualified', message: 'Need a better system for tracking customer follow-ups after purchase.' },
+  { id: 3, name: 'Dean Foster', company: 'Foster & Lin CPA', title: 'Partner', source: 'LinkedIn', score: 61, status: 'Contacted', message: 'Curious what AI can actually do for a small accounting firm. Skeptical but open.' },
+  { id: 4, name: 'Anita Romero', company: 'Romero Dental Group', title: 'Practice Manager', source: 'Webflow Form', score: 75, status: 'New', message: 'Patients keep no-showing. Want reminder automation that actually works.' },
+  { id: 5, name: 'Greg Talbot', company: 'Talbot Logistics', title: 'VP Operations', source: 'Cold Outreach', score: 54, status: 'Contacted', message: 'Not actively looking but will hear a pitch if it saves dispatcher time.' },
+  { id: 6, name: 'Sasha Kim', company: 'Kim & Co Realty', title: 'Broker', source: 'Webflow Form', score: 95, status: 'Qualified', message: 'Scaling fast, need lead routing and CRM cleanup yesterday.' },
+  { id: 7, name: 'Owen Brackett', company: 'Brackett Fitness', title: 'Owner', source: 'Instagram DM', score: 48, status: 'New', message: 'Just exploring options, not sure I have budget yet.' },
+  { id: 8, name: 'Lena Vu', company: 'Vu Design Collective', title: 'Studio Director', source: 'Referral', score: 70, status: 'Contacted', message: 'Client onboarding takes too many emails. Want it streamlined.' },
+  { id: 9, name: 'Carlos Mendez', company: 'Mendez Auto Group', title: 'GM', source: 'Cold Outreach', score: 58, status: 'New', message: 'Service department follow-up is inconsistent across locations.' },
+  { id: 10, name: 'Tasha Williams', company: 'Williams Legal Partners', title: 'Managing Partner', source: 'LinkedIn', score: 83, status: 'Qualified', message: 'Intake calls are eating associate time we should bill elsewhere.' },
+  { id: 11, name: 'Felix Ortega', company: 'Ortega Home Services', title: 'Owner', source: 'Webflow Form', score: 66, status: 'Contacted', message: 'Scheduling chaos between three crews, need it centralized.' },
+  { id: 12, name: 'Naomi Park', company: 'Park & Bloom Florals', title: 'Owner', source: 'Instagram DM', score: 44, status: 'New', message: 'Small shop, mostly wondering what is realistic on a tight budget.' },
+  { id: 13, name: 'Jordan Reyes', company: 'Reyes Construction', title: 'Project Lead', source: 'Referral', score: 79, status: 'New', message: 'Subcontractor scheduling and change orders are a mess right now.' },
+  { id: 14, name: 'Helena Cho', company: 'Cho Wellness Clinic', title: 'Director', source: 'Cold Outreach', score: 90, status: 'Qualified', message: 'Growing two locations, need intake and follow-up that scales with us.' },
+  { id: 15, name: 'Ben Striker', company: 'Striker Media Group', title: 'Founder', source: 'LinkedIn', score: 40, status: 'Contacted', message: 'Mostly fielding outreach right now, no concrete project in mind.' }
+];
+
+const state = {
+  view: 'leads', // 'leads' | 'sources' | 'settings'
+  status: 'All',
+  search: '',
+  sortKey: null,
+  sortDir: 1, // 1 = asc, -1 = desc
+  selectedId: null,
+  highThreshold: 80,
+  midThreshold: 60,
+  slackRouting: true,
+  digestFrequency: 'daily'
+};
+
+function scoreClass(score) {
+  if (score >= state.highThreshold) return 'score-high';
+  if (score >= state.midThreshold) return 'score-mid';
+  return 'score-low';
+}
+
+function getFilteredSorted() {
+  let rows = LEADS.filter(l => {
+    if (state.status !== 'All' && l.status !== state.status) return false;
+    if (state.search) {
+      const q = state.search.toLowerCase();
+      if (!l.name.toLowerCase().includes(q) && !l.company.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (state.sortKey) {
+    rows = rows.slice().sort((a, b) => {
+      const av = a[state.sortKey];
+      const bv = b[state.sortKey];
+      if (typeof av === 'number' && typeof bv === 'number') {
+        return (av - bv) * state.sortDir;
+      }
+      return String(av).localeCompare(String(bv)) * state.sortDir;
+    });
+  }
+
+  return rows;
+}
+
+const TOPBAR = {
+  leads: { title: 'Leads', sub: 'Inbound &amp; sourced leads, scored and ready to work' },
+  sources: { title: 'Sources', sub: 'Where your leads come from, and how each source performs' },
+  settings: { title: 'Settings', sub: 'Scoring rules, routing, and digest preferences' }
+};
+
+function renderApp() {
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.toggle('active', link.dataset.view === state.view);
+  });
+
+  document.getElementById('view-leads').style.display = state.view === 'leads' ? 'flex' : 'none';
+  document.getElementById('view-sources').style.display = state.view === 'sources' ? 'grid' : 'none';
+  document.getElementById('view-settings').style.display = state.view === 'settings' ? 'flex' : 'none';
+
+  const topbar = TOPBAR[state.view];
+  document.getElementById('topbarTitle').textContent = topbar.title;
+  document.getElementById('topbarSub').innerHTML = topbar.sub;
+
+  if (state.view === 'leads') {
+    render();
+    renderDetail();
+  } else if (state.view === 'sources') {
+    renderSources();
+  } else if (state.view === 'settings') {
+    renderSettings();
+  }
+}
+
+function getSourceStats() {
+  const bySource = {};
+  LEADS.forEach(l => {
+    if (!bySource[l.source]) {
+      bySource[l.source] = { source: l.source, leads: [] };
+    }
+    bySource[l.source].leads.push(l);
+  });
+
+  return Object.values(bySource).map(group => {
+    const count = group.leads.length;
+    const avgScore = group.leads.reduce((sum, l) => sum + l.score, 0) / count;
+    const statusCounts = group.leads.reduce((acc, l) => {
+      acc[l.status] = (acc[l.status] || 0) + 1;
+      return acc;
+    }, {});
+    return {
+      source: group.source,
+      count,
+      avgScore: Math.round(avgScore * 10) / 10,
+      statusCounts
+    };
+  }).sort((a, b) => b.count - a.count);
+}
+
+function renderSources() {
+  const stats = getSourceStats();
+  const grid = document.getElementById('view-sources');
+  grid.innerHTML = stats.map(s => `
+    <div class="source-card">
+      <div class="source-name">${s.source}</div>
+      <div class="source-meta">${s.count} lead${s.count === 1 ? '' : 's'} &middot; avg score ${s.avgScore}</div>
+      <div class="source-stat-row"><span class="label">New</span><span class="value">${s.statusCounts.New || 0}</span></div>
+      <div class="source-stat-row"><span class="label">Contacted</span><span class="value">${s.statusCounts.Contacted || 0}</span></div>
+      <div class="source-stat-row"><span class="label">Qualified</span><span class="value">${s.statusCounts.Qualified || 0}</span></div>
+    </div>
+  `).join('');
+}
+
+function renderSettings() {
+  const panel = document.getElementById('view-settings');
+  panel.innerHTML = `
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Auto-route high-score leads to Slack</div>
+        <div class="settings-help">Pings #new-leads when a lead scores in the high tier</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="slackToggle" ${state.slackRouting ? 'checked' : ''}>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Email digest frequency</div>
+        <div class="settings-help">How often you get a summary of new leads</div>
+      </div>
+      <div class="settings-control">
+        <select id="digestSelect">
+          <option value="realtime" ${state.digestFrequency === 'realtime' ? 'selected' : ''}>Real-time</option>
+          <option value="daily" ${state.digestFrequency === 'daily' ? 'selected' : ''}>Daily</option>
+          <option value="weekly" ${state.digestFrequency === 'weekly' ? 'selected' : ''}>Weekly</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Score threshold for "high" tier</div>
+        <div class="settings-help">Leads at or above this score show as high (green)</div>
+      </div>
+      <div class="settings-control">
+        <input type="number" id="highThresholdInput" min="${state.midThreshold + 1}" max="100" value="${state.highThreshold}">
+      </div>
+    </div>
+
+    <button class="reset-btn" id="resetDataBtn">Reset to sample data</button>
+    <div class="settings-confirm" id="resetConfirm"></div>
+  `;
+
+  document.getElementById('slackToggle').addEventListener('change', (e) => {
+    state.slackRouting = e.target.checked;
+  });
+
+  document.getElementById('digestSelect').addEventListener('change', (e) => {
+    state.digestFrequency = e.target.value;
+  });
+
+  document.getElementById('highThresholdInput').addEventListener('change', (e) => {
+    const val = Number(e.target.value);
+    if (!Number.isFinite(val) || val <= state.midThreshold || val > 100) {
+      e.target.value = state.highThreshold;
+      return;
+    }
+    state.highThreshold = val;
+  });
+
+  document.getElementById('resetDataBtn').addEventListener('click', () => {
+    const confirm = document.getElementById('resetConfirm');
+    confirm.textContent = `Sample data confirmed: ${LEADS.length} leads loaded, unchanged from default.`;
+  });
+}
+
+function render() {
+  const rows = getFilteredSorted();
+  const tbody = document.getElementById('leadsBody');
+  tbody.innerHTML = rows.map(l => `
+    <tr class="clickable ${l.id === state.selectedId ? 'selected' : ''}" data-id="${l.id}">
+      <td>${l.name}</td>
+      <td>${l.company}</td>
+      <td>${l.source}</td>
+      <td class="num"><span class="score-pill ${scoreClass(l.score)}">${l.score}</span></td>
+      <td><span class="status-pill status-${l.status}">${l.status}</span></td>
+    </tr>
+  `).join('');
+
+  document.getElementById('resultCount').textContent =
+    `${rows.length} lead${rows.length === 1 ? '' : 's'}`;
+
+  // sort arrow states
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.classList.remove('sort-asc', 'sort-desc');
+    if (btn.dataset.key === state.sortKey) {
+      btn.classList.add(state.sortDir === 1 ? 'sort-asc' : 'sort-desc');
+    }
+  });
+
+  // row click handlers
+  tbody.querySelectorAll('tr.clickable').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const id = Number(tr.dataset.id);
+      state.selectedId = state.selectedId === id ? null : id;
+      render();
+      renderDetail();
+    });
+  });
+}
+
+function draftReply(lead) {
+  const firstName = lead.name.split(' ')[0];
+
+  const hook = lead.score >= 80
+    ? `I noticed ${lead.company} looks like it's scaling fast, and that's usually exactly when manual processes start costing real hours`
+    : lead.score >= 60
+      ? `I saw your note about ${lead.title.toLowerCase()} work at ${lead.company} and wanted to follow up directly`
+      : `I know you mentioned you're still exploring options, so no pressure here`;
+
+  const proof = lead.score >= 80
+    ? `Most teams at this stage are losing 5-10 hours a week to things a simple automation could handle.`
+    : lead.score >= 60
+      ? `Even a small fix in this area tends to free up several hours a week for the team.`
+      : `Happy to share what a realistic, low-cost first step could look like.`;
+
+  const close = lead.status === 'Qualified'
+    ? `If it's useful, I can put together a short plan specific to ${lead.company} this week — no obligation.`
+    : `Would a quick 15-minute call make sense to see if this is worth pursuing?`;
+
+  return `Hi ${firstName},\n\n${hook}. ${proof}\n\nRegarding what you mentioned — "${lead.message}" — that's exactly the kind of thing I help fix.\n\n${close}\n\nBest,\nAI Ops Expert`;
+}
+
+function renderDetail() {
+  const panel = document.getElementById('detailPanel');
+  const lead = LEADS.find(l => l.id === state.selectedId);
+
+  if (!lead) {
+    panel.classList.add('empty');
+    panel.innerHTML = 'Select a lead to view details and generate a follow-up.';
+    return;
+  }
+
+  panel.classList.remove('empty');
+  panel.innerHTML = `
+    <div class="detail-header">
+      <div class="name">${lead.name}</div>
+      <div class="role">${lead.title} &middot; ${lead.company}</div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-row"><span class="label">Source</span><span class="value">${lead.source}</span></div>
+      <div class="detail-row"><span class="label">Score</span><span class="value">${lead.score}</span></div>
+      <div class="detail-row"><span class="label">Status</span><span class="value">${lead.status}</span></div>
+      <div class="detail-message">
+        <span class="label">Lead message</span>
+        ${lead.message}
+      </div>
+      <button class="generate-btn" id="genBtn">Generate follow-up</button>
+      <div id="draftHolder"></div>
+    </div>
+  `;
+
+  document.getElementById('genBtn').addEventListener('click', () => {
+    const holder = document.getElementById('draftHolder');
+    holder.innerHTML = `
+      <div class="draft-output">
+        <span class="label">Generated draft</span>
+        ${draftReply(lead)}
+      </div>
+    `;
+  });
+}
+
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    state.view = link.dataset.view;
+    renderApp();
+  });
+});
+
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state.status = chip.dataset.status;
+    render();
+  });
+});
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  state.search = e.target.value.trim();
+  render();
+});
+
+document.querySelectorAll('.sort-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.key;
+    if (state.sortKey === key) {
+      state.sortDir *= -1;
+    } else {
+      state.sortKey = key;
+      state.sortDir = 1;
+    }
+    render();
+  });
+});
+
+renderApp();
+
+/* ---------------------------------------------------------------
+   Guided tour (Arcade-style spotlight + step caption)
+   --------------------------------------------------------------- */
+const TOOL_ICONS = {
+  webflow: { name: 'Webflow', domain: 'webflow.com' },
+  make:    { name: 'Make.com', domain: 'make.com' },
+  claude:  { name: 'Claude', domain: 'anthropic.com' },
+  hubspot: { name: 'HubSpot', domain: 'hubspot.com' }
+};
+
+const TOUR_STEPS = [
+  {
+    target: () => document.querySelector('.app-topbar h1'),
+    text: 'This is LeadPilot — every inbound lead lands here pre-scored, so reps know who to call first without guessing.',
+    before: () => { state.view = 'leads'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="webflow"]'),
+    tool: 'webflow',
+    text: 'It starts with a Webflow form submission on your site — that single submit is the trigger for everything that follows.',
+    before: () => { state.view = 'leads'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="make"]'),
+    tool: 'make',
+    text: 'Make.com picks it up instantly — enriches the lead and writes it straight into this table. No one is copy-pasting from an inbox.'
+  },
+  {
+    target: () => document.querySelector('.sort-btn[data-key="score"]'),
+    text: 'Click any column to sort. Watch the Score column — this is a real sort, not a styled list.',
+    before: () => { state.view = 'leads'; renderApp(); },
+    action: () => document.querySelector('.sort-btn[data-key="score"]').click()
+  },
+  {
+    target: () => document.querySelector('#leadsBody .score-pill'),
+    text: `Here's the actual rule behind that pill: score ${state.highThreshold} or above is green, ${state.midThreshold}–${state.highThreshold - 1} is amber, below that is red. It's a live threshold, not a label someone typed — change it in Settings and every pill on the board recolors immediately.`
+  },
+  {
+    target: () => document.querySelector('.filter-chip[data-status="Qualified"]'),
+    text: 'Status — New, Contacted, Qualified — tracks where they actually are in your funnel, separately from score. A lead can be high-scoring and still brand new; status moves when a rep acts, score tells them who to act on first.',
+  },
+  {
+    target: () => document.querySelector('.filter-chip[data-status="Qualified"]'),
+    text: 'Filter by status with one click — Qualified leads only, instantly.',
+    action: () => document.querySelector('.filter-chip[data-status="Qualified"]').click()
+  },
+  {
+    target: () => document.querySelector('#leadsBody tr'),
+    text: 'Click into any lead to open their detail panel and generate a tailored follow-up draft.',
+    action: () => { const row = document.querySelector('#leadsBody tr'); if (row) row.click(); }
+  },
+  {
+    target: () => document.getElementById('detailPanel').querySelector('.generate-btn'),
+    tool: 'claude',
+    text: 'One click and Claude drafts the follow-up — the wording actually changes based on this lead\'s score and title.',
+    action: () => { const btn = document.getElementById('detailPanel').querySelector('.generate-btn'); if (btn) btn.click(); }
+  },
+  {
+    target: () => document.querySelector('.badge-tool[data-tool="hubspot"]'),
+    tool: 'hubspot',
+    text: 'Every one of these leads also exists as a contact in HubSpot, in sync, the moment it is created — this view and your CRM never drift apart.',
+    before: () => { state.view = 'leads'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="sources"]'),
+    text: 'Sources breaks every lead down by channel — count, average score, status mix — computed live, not hardcoded.',
+    action: () => { state.view = 'sources'; renderApp(); }
+  },
+  {
+    target: () => document.querySelector('.nav-link[data-view="settings"]'),
+    text: 'Settings is functional too — change the score threshold here and every lead re-tiers immediately.',
+    action: () => { state.view = 'settings'; renderApp(); }
+  }
+];
+
+let tourIndex = 0;
+let tourEls = null;
+
+function buildTourEls() {
+  if (tourEls) return tourEls;
+  const scrim = document.createElement('div');
+  scrim.className = 'tour-scrim';
+  const ring = document.createElement('div');
+  ring.className = 'tour-ring';
+  const card = document.createElement('div');
+  card.className = 'tour-card';
+  card.innerHTML = `
+    <div class="tour-step" id="tourStepLabel"></div>
+    <div class="tour-tool" id="tourTool" style="display:none;"></div>
+    <div class="tour-text" id="tourText"></div>
+    <div class="tour-controls">
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-nav-btns">
+        <button class="tour-skip" id="tourSkipBtn" type="button">Skip</button>
+        <button class="tour-next" id="tourNextBtn" type="button">Next</button>
+      </div>
+    </div>
+  `;
+  document.body.append(scrim, ring, card);
+  tourEls = { scrim, ring, card };
+  document.getElementById('tourSkipBtn').addEventListener('click', endTour);
+  document.getElementById('tourNextBtn').addEventListener('click', advanceTour);
+  return tourEls;
+}
+
+function positionTour(target) {
+  const { ring, card } = buildTourEls();
+  const r = target.getBoundingClientRect();
+  const pad = 6;
+  ring.style.top = (r.top - pad) + 'px';
+  ring.style.left = (r.left - pad) + 'px';
+  ring.style.width = (r.width + pad * 2) + 'px';
+  ring.style.height = (r.height + pad * 2) + 'px';
+
+  const cardWidth = 300;
+  let cardTop = r.bottom + 14;
+  let cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
+  if (cardTop + 140 > window.innerHeight) cardTop = Math.max(r.top - 160, 16);
+  card.style.top = cardTop + 'px';
+  card.style.left = cardLeft + 'px';
+}
+
+function runTourStep(index) {
+  const step = TOUR_STEPS[index];
+  if (!step) return endTour();
+  if (step.before) step.before();
+  if (step.action) step.action();
+
+  setTimeout(() => {
+    const target = step.target();
+    if (!target) return advanceTour();
+    target.scrollIntoView({ block: 'nearest' });
+    positionTour(target);
+
+    document.getElementById('tourStepLabel').textContent = `Step ${index + 1} of ${TOUR_STEPS.length}`;
+    const toolEl = document.getElementById('tourTool');
+    if (step.tool && TOOL_ICONS[step.tool]) {
+      const t = TOOL_ICONS[step.tool];
+      toolEl.style.display = 'flex';
+      toolEl.innerHTML = `<img src="https://www.google.com/s2/favicons?domain=${t.domain}&sz=32" alt=""> Powered by ${t.name}`;
+    } else {
+      toolEl.style.display = 'none';
+      toolEl.innerHTML = '';
+    }
+    document.getElementById('tourText').textContent = step.text;
+    document.getElementById('tourNextBtn').textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+    document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) =>
+      `<span class="tour-dot ${i === index ? 'current' : ''}"></span>`).join('');
+  });
+}
+
+function advanceTour() {
+  tourIndex += 1;
+  if (tourIndex >= TOUR_STEPS.length) return endTour();
+  runTourStep(tourIndex);
+}
+
+function startTour() {
+  tourIndex = 0;
+  buildTourEls();
+  tourEls.scrim.classList.add('active');
+  runTourStep(0);
+}
+
+function endTour() {
+  if (!tourEls) return;
+  tourEls.scrim.classList.remove('active');
+  tourEls.ring.style.width = '0px';
+  tourEls.ring.style.height = '0px';
+  tourEls.card.style.top = '-9999px';
+}
+
+document.getElementById('tourBtn').addEventListener('click', startTour);
+window.addEventListener('resize', () => {
+  if (tourEls && tourEls.scrim.classList.contains('active')) positionTour(TOUR_STEPS[tourIndex].target());
+});
+</script>
+
+</body>
+</html>
