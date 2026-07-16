@@ -482,6 +482,10 @@
   }
 
   .tour-card button.tour-skip:hover { color: var(--text); }
+  .tour-click-hint { font-size: 12px; color: var(--accent); margin: 6px 0 0; text-align: center; font-weight: 500; }
+  .tour-step-skip { font-size: 11px; text-align: center; margin-top: 2px; }
+  .tour-step-skip a { color: var(--text-muted); text-decoration: none; }
+  .tour-step-skip a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -968,65 +972,43 @@ const TOOL_ICONS = {
 const TOUR_STEPS = [
   {
     target: () => document.querySelector('.app-topbar h1'),
-    text: 'This is the onboarding workspace — it tracks every client through Contract, Workspace Setup, and Kickoff with a real progress ring, not a status someone typed in.',
+    text: 'Every client moves through Contract, Workspace Setup, and Kickoff — each stage locks until the one before it is fully checked off.',
     before: () => { state.view = 'workspace'; state.activeClientId = 'romero'; state.expandedIndex = 0; renderApp(); }
-  },
-  {
-    target: () => document.querySelector('.badge-tool[data-tool="hubspot"]'),
-    tool: 'hubspot',
-    text: 'It starts the moment a deal closes in HubSpot — that close is the trigger that creates this client\'s onboarding workspace automatically.',
-    before: () => { state.view = 'workspace'; renderApp(); }
   },
   {
     target: () => document.querySelector('.badge-tool[data-tool="make"]'),
     tool: 'make',
-    text: 'Make.com is what actually catches that HubSpot trigger and runs the setup — creating the Notion workspace, sending the welcome sequence, queuing the Loom video. One closed deal, one automation, several things happening at once.'
+    text: 'The moment a deal closes in HubSpot, Make.com creates this workspace — checklist, Notion folder, and a Loom welcome video, all in one automation.'
   },
   {
-    target: () => document.querySelector('.badge-tool[data-tool="notion"]'),
-    tool: 'notion',
-    text: 'Notion is where the actual client workspace lives — the checklist you\'re about to check off isn\'t just UI state here, it mirrors a real shared workspace the client and your team both see.'
+    target: () => document.getElementById('ringPct'),
+    text: 'That ring reads the actual step data — not a percentage someone typed in. It updates every time a step is checked off.',
+    before: () => { state.activeClientId = 'romero'; state.expandedIndex = 0; renderApp(); }
   },
   {
-    target: () => document.querySelector('.badge-tool[data-tool="loom"]'),
-    tool: 'loom',
-    text: 'A Loom welcome video goes out the same moment the workspace is created — the client gets a face and a voice on day one instead of just a checklist link in an email.'
+    target: () => document.getElementById('step-0-2'),
+    text: 'Check off this last Contract step — watch what happens to the stage below it.',
+    interactive: true
   },
   {
-    target: () => document.querySelector('#stages .stage-card[data-index="0"] .stage-header'),
-    text: 'Click a stage header to expand its checklist. Romero Dental Group\'s Contract stage is open by default — watch the progress ring on the right as you check items off.',
-    action: () => {
-      const header = document.querySelector('#stages .stage-card[data-index="0"] .stage-header');
-      if (header && state.expandedIndex !== 0) header.click();
-    }
-  },
-  {
-    target: () => document.querySelector('#step-0-2'),
-    text: 'Check off the last Contract step — "Master service agreement countersigned" — and the ring updates instantly because it\'s reading the actual steps data, not a hardcoded percentage.',
-    action: () => {
-      const cb = document.getElementById('step-0-2');
-      if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
-    }
-  },
-  {
-    target: () => document.querySelector('#stages .stage-card[data-index="1"] .stage-header'),
-    text: 'Here is the actual gating rule: isStageUnlocked() checks that every step in the prior stage is done before the next stage opens. A moment ago, Romero Dental Group\'s Workspace Setup stage was locked because Contract was only 2 of 3 steps complete — checking off that last item just unlocked it.',
+    target: () => document.querySelector('#stages .stage-card[data-index="1"]'),
+    text: 'Workspace Setup just unlocked — because Contract is now 3 of 3 steps complete. Every step in the prior stage must be done before the next one opens.',
     before: () => { state.activeClientId = 'romero'; renderApp(); }
   },
   {
-    target: () => document.querySelector('.nav-link[data-view="clients"]'),
-    text: 'The Clients view lines up every client\'s current stage and overall progress side by side — useful for seeing who is stalled at a glance.',
-    action: () => { state.view = 'clients'; renderApp(); }
+    target: () => document.querySelector('.app-topbar h1'),
+    text: 'Complete a stage, the next unlocks — every client onboards the same way, every time.'
   },
   {
-    target: () => document.querySelector('.nav-link[data-view="settings"]'),
-    text: 'Settings holds the sequential-gating toggle. Turn "Require sequential stage completion" off and isStageUnlocked() returns true for every stage — the lock tags disappear and any stage can be opened regardless of what came before.',
-    action: () => { state.view = 'settings'; renderApp(); }
+    target: () => document.querySelector('.logo'),
+    ctaStep: true,
+    html: 'Want this running in your business on tools you already own? I build systems like this in days, not months.<br><br><strong>Daniel Schley · AI Ops Expert</strong><br><a href="mailto:dschley@aiopsexpert.com" target="_blank">dschley@aiopsexpert.com</a> &middot; <a href="https://aiopsexpert.com" target="_blank">aiopsexpert.com</a>'
   }
 ];
 
 let tourIndex = 0;
 let tourEls = null;
+let interactiveCleanup = null;
 
 function buildTourEls() {
   if (tourEls) return tourEls;
@@ -1040,23 +1022,26 @@ function buildTourEls() {
     <div class="tour-step" id="tourStepLabel"></div>
     <div class="tour-tool" id="tourTool" style="display:none;"></div>
     <div class="tour-text" id="tourText"></div>
+    <div class="tour-click-hint" id="tourClickHint" style="display:none;">👆 Click to continue</div>
     <div class="tour-controls">
       <div class="tour-dots" id="tourDots"></div>
       <div class="tour-nav-btns">
-        <button class="tour-skip" id="tourSkipBtn" type="button">Skip</button>
+        <button class="tour-skip" id="tourSkipBtn" type="button">Skip tour</button>
         <button class="tour-next" id="tourNextBtn" type="button">Next</button>
       </div>
     </div>
+    <div class="tour-step-skip" id="tourStepSkip" style="display:none;"><a href="#" id="tourStepSkipLink">Skip this step →</a></div>
   `;
   document.body.append(scrim, ring, card);
   tourEls = { scrim, ring, card };
   document.getElementById('tourSkipBtn').addEventListener('click', endTour);
-  document.getElementById('tourNextBtn').addEventListener('click', advanceTour);
+  document.getElementById('tourStepSkipLink').addEventListener('click', (e) => { e.preventDefault(); advanceTour(); });
   return tourEls;
 }
 
 function positionTour(target) {
   const { ring, card } = buildTourEls();
+  target.scrollIntoView({ block: 'center', behavior: 'instant' });
   const r = target.getBoundingClientRect();
   const pad = 6;
   ring.style.top = (r.top - pad) + 'px';
@@ -1065,9 +1050,16 @@ function positionTour(target) {
   ring.style.height = (r.height + pad * 2) + 'px';
 
   const cardWidth = 300;
-  let cardTop = r.bottom + 14;
-  let cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
-  if (cardTop + 140 > window.innerHeight) cardTop = Math.max(r.top - 160, 16);
+  const cardH = 180;
+  const cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
+  let cardTop;
+  if (r.bottom + 14 + cardH <= window.innerHeight) {
+    cardTop = r.bottom + 14;
+  } else if (r.top - 14 - cardH >= 0) {
+    cardTop = r.top - 14 - cardH;
+  } else {
+    cardTop = Math.max((window.innerHeight - cardH) / 2, 16);
+  }
   card.style.top = cardTop + 'px';
   card.style.left = cardLeft + 'px';
 }
@@ -1076,12 +1068,33 @@ function runTourStep(index) {
   const step = TOUR_STEPS[index];
   if (!step) return endTour();
   if (step.before) step.before();
-  if (step.action) step.action();
+
+  const nextBtn = document.getElementById('tourNextBtn');
+  const clickHint = document.getElementById('tourClickHint');
+  const stepSkip = document.getElementById('tourStepSkip');
+
+  if (step.interactive) {
+    nextBtn.style.display = 'none';
+    clickHint.style.display = 'block';
+    stepSkip.style.display = 'block';
+    nextBtn.onclick = null;
+  } else {
+    nextBtn.style.display = '';
+    clickHint.style.display = 'none';
+    stepSkip.style.display = 'none';
+    if (step.ctaStep) {
+      nextBtn.textContent = 'Get in touch →';
+      nextBtn.onclick = () => { window.open('mailto:dschley@aiopsexpert.com'); endTour(); };
+    } else {
+      nextBtn.textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+      nextBtn.onclick = advanceTour;
+    }
+    if (step.action) step.action();
+  }
 
   setTimeout(() => {
     const target = step.target();
     if (!target) return advanceTour();
-    target.scrollIntoView({ block: 'nearest' });
     positionTour(target);
 
     document.getElementById('tourStepLabel').textContent = `Step ${index + 1} of ${TOUR_STEPS.length}`;
@@ -1094,20 +1107,33 @@ function runTourStep(index) {
       toolEl.style.display = 'none';
       toolEl.innerHTML = '';
     }
-    document.getElementById('tourText').textContent = step.text;
-    document.getElementById('tourNextBtn').textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+    if (step.html) {
+      document.getElementById('tourText').innerHTML = step.html;
+    } else {
+      document.getElementById('tourText').textContent = step.text || '';
+    }
     document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) =>
       `<span class="tour-dot ${i === index ? 'current' : ''}"></span>`).join('');
+
+    if (step.interactive) {
+      const elToWatch = step.interactiveEl ? step.interactiveEl() : target;
+      const eventType = step.interactiveEvent || 'click';
+      const handler = () => { setTimeout(advanceTour, 400); };
+      elToWatch.addEventListener(eventType, handler, { once: true });
+      interactiveCleanup = () => elToWatch.removeEventListener(eventType, handler);
+    }
   });
 }
 
 function advanceTour() {
+  if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   tourIndex += 1;
   if (tourIndex >= TOUR_STEPS.length) return endTour();
   runTourStep(tourIndex);
 }
 
 function startTour() {
+  if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   tourIndex = 0;
   buildTourEls();
   tourEls.scrim.classList.add('active');
@@ -1115,6 +1141,7 @@ function startTour() {
 }
 
 function endTour() {
+  if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   if (!tourEls) return;
   tourEls.scrim.classList.remove('active');
   tourEls.ring.style.width = '0px';

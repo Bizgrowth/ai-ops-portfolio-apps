@@ -477,6 +477,10 @@
   }
 
   .tour-card button.tour-skip:hover { color: var(--text); }
+  .tour-click-hint { font-size: 12px; color: var(--accent); margin: 6px 0 0; text-align: center; font-weight: 500; }
+  .tour-step-skip { font-size: 11px; text-align: center; margin-top: 2px; }
+  .tour-step-skip a { color: var(--text-muted); text-decoration: none; }
+  .tour-step-skip a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -880,55 +884,48 @@ const TOOL_ICONS = {
 const TOUR_STEPS = [
   {
     target: () => document.querySelector('.app-topbar h1'),
-    text: 'This is FlowDesk — a real task board your team works from, not a status meeting replacement. Every card here is live work, tied to an SOP and a client.',
-    before: () => { state.view = 'tasks'; renderApp(); }
+    text: 'FlowDesk is the task board your team actually works from — every card tied to an SOP, every stage a real workflow step.',
+    before: () => { state.view = 'tasks'; selectedId = null; renderApp(); }
   },
   {
     target: () => document.querySelector('.badge-tool[data-tool="clickup"]'),
     tool: 'clickup',
-    text: 'This board runs on ClickUp under the hood — the same task data, drag-and-drop, and stage logic you\'d see in a real ClickUp workspace, not a separate tool to keep in sync.'
+    text: 'This board runs on ClickUp data — the same tasks, stages, and assignments your team already manages, just surfaced where they can act on them.'
   },
   {
-    target: () => document.querySelector('.kanban-card[data-id="4"]'),
-    text: 'Drag any card between columns to move it through the workflow. Watch this card — "Map manual invoice-chase workflow" — move from In Progress to Review, and the column counts update with it.',
-    before: () => { state.view = 'tasks'; renderApp(); }
-  },
-  {
-    target: () => document.querySelector('.badge-tool[data-tool="notion"]'),
-    tool: 'notion',
-    text: 'Every SOP referenced on this board lives as a real document in Notion — the link you\'re about to see isn\'t a label, it points at the actual standard your team follows.'
-  },
-  {
-    target: () => document.querySelector('.kanban-card[data-id="4"]'),
-    text: `Each card carries a real link to an SOP. "Map manual invoice-chase workflow" links to "Automation Build & QA" — click it, then Draft first pass, and it pulls that SOP's actual wording in: "Picking this up mid-flight, so checking it against \\"Automation Build & QA\\" now to make sure nothing in that process got skipped." That's not a generic template, it's built from this task's real status and its linked SOP.`,
-    tool: 'claude',
-    action: () => {
+    target: () => document.querySelector('.kanban-col[data-status="Review"] .kanban-card'),
+    text: 'Drag any card between stages — column counts update the moment it lands. Task 4 just moved from In Progress to Review.',
+    before: () => {
       const task = TASKS.find(t => t.id === 4);
       if (task) task.status = 'Review';
-      selectedId = 4;
-      render();
-      renderDetail();
+      state.view = 'tasks'; selectedId = null; renderApp();
     }
   },
   {
-    target: () => document.querySelector('.nav-link[data-view="sops"]'),
-    text: '"Monthly Content Calendar Build" currently has 4 linked tasks — that count comes straight from the task board, it updates the moment a task\'s SOP link changes.',
-    action: () => { state.view = 'sops'; renderApp(); }
+    target: () => document.querySelector('.kanban-card[data-id="4"]'),
+    text: 'Click this card — see the SOP it\'s linked to and draft a first pass.',
+    interactive: true
   },
   {
-    target: () => document.querySelector('.nav-link[data-view="clients"]'),
-    text: 'Romero Dental Group has 1 task in Backlog, 1 In Progress, 1 in Review, and 1 Done — a live breakdown, not a manually updated spreadsheet.',
-    action: () => { state.view = 'clients'; renderApp(); }
+    target: () => document.getElementById('detailPanel'),
+    tool: 'claude',
+    text: 'That draft was built from this task\'s actual SOP. The wording changes based on the SOP title and the task\'s current stage — not a generic template.',
+    action: () => { const btn = document.getElementById('draftBtn'); if (btn) btn.click(); }
   },
   {
-    target: () => document.querySelector('.nav-link[data-view="settings"]'),
-    text: 'The overdue toggle flags any task where the due date has passed and the status isn\'t Done — flip it on and the board redraws every late card with a red border and an Overdue tag immediately.',
-    action: () => { state.view = 'settings'; renderApp(); }
+    target: () => document.querySelector('.app-topbar h1'),
+    text: 'Pick the top task, generate the first pass, refine, ship. One SOP per task — no tribal knowledge required.'
+  },
+  {
+    target: () => document.querySelector('.logo'),
+    ctaStep: true,
+    html: 'Want this running in your business on tools you already own? I build systems like this in days, not months.<br><br><strong>Daniel Schley · AI Ops Expert</strong><br><a href="mailto:dschley@aiopsexpert.com" target="_blank">dschley@aiopsexpert.com</a> &middot; <a href="https://aiopsexpert.com" target="_blank">aiopsexpert.com</a>'
   }
 ];
 
 let tourIndex = 0;
 let tourEls = null;
+let interactiveCleanup = null;
 
 function buildTourEls() {
   if (tourEls) return tourEls;
@@ -942,23 +939,26 @@ function buildTourEls() {
     <div class="tour-step" id="tourStepLabel"></div>
     <div class="tour-tool" id="tourTool" style="display:none;"></div>
     <div class="tour-text" id="tourText"></div>
+    <div class="tour-click-hint" id="tourClickHint" style="display:none;">👆 Click to continue</div>
     <div class="tour-controls">
       <div class="tour-dots" id="tourDots"></div>
       <div class="tour-nav-btns">
-        <button class="tour-skip" id="tourSkipBtn" type="button">Skip</button>
+        <button class="tour-skip" id="tourSkipBtn" type="button">Skip tour</button>
         <button class="tour-next" id="tourNextBtn" type="button">Next</button>
       </div>
     </div>
+    <div class="tour-step-skip" id="tourStepSkip" style="display:none;"><a href="#" id="tourStepSkipLink">Skip this step →</a></div>
   `;
   document.body.append(scrim, ring, card);
   tourEls = { scrim, ring, card };
   document.getElementById('tourSkipBtn').addEventListener('click', endTour);
-  document.getElementById('tourNextBtn').addEventListener('click', advanceTour);
+  document.getElementById('tourStepSkipLink').addEventListener('click', (e) => { e.preventDefault(); advanceTour(); });
   return tourEls;
 }
 
 function positionTour(target) {
   const { ring, card } = buildTourEls();
+  target.scrollIntoView({ block: 'center', behavior: 'instant' });
   const r = target.getBoundingClientRect();
   const pad = 6;
   ring.style.top = (r.top - pad) + 'px';
@@ -967,9 +967,16 @@ function positionTour(target) {
   ring.style.height = (r.height + pad * 2) + 'px';
 
   const cardWidth = 300;
-  let cardTop = r.bottom + 14;
-  let cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
-  if (cardTop + 140 > window.innerHeight) cardTop = Math.max(r.top - 160, 16);
+  const cardH = 180;
+  const cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
+  let cardTop;
+  if (r.bottom + 14 + cardH <= window.innerHeight) {
+    cardTop = r.bottom + 14;
+  } else if (r.top - 14 - cardH >= 0) {
+    cardTop = r.top - 14 - cardH;
+  } else {
+    cardTop = Math.max((window.innerHeight - cardH) / 2, 16);
+  }
   card.style.top = cardTop + 'px';
   card.style.left = cardLeft + 'px';
 }
@@ -978,12 +985,33 @@ function runTourStep(index) {
   const step = TOUR_STEPS[index];
   if (!step) return endTour();
   if (step.before) step.before();
-  if (step.action) step.action();
+
+  const nextBtn = document.getElementById('tourNextBtn');
+  const clickHint = document.getElementById('tourClickHint');
+  const stepSkip = document.getElementById('tourStepSkip');
+
+  if (step.interactive) {
+    nextBtn.style.display = 'none';
+    clickHint.style.display = 'block';
+    stepSkip.style.display = 'block';
+    nextBtn.onclick = null;
+  } else {
+    nextBtn.style.display = '';
+    clickHint.style.display = 'none';
+    stepSkip.style.display = 'none';
+    if (step.ctaStep) {
+      nextBtn.textContent = 'Get in touch →';
+      nextBtn.onclick = () => { window.open('mailto:dschley@aiopsexpert.com'); endTour(); };
+    } else {
+      nextBtn.textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+      nextBtn.onclick = advanceTour;
+    }
+    if (step.action) step.action();
+  }
 
   setTimeout(() => {
     const target = step.target();
     if (!target) return advanceTour();
-    target.scrollIntoView({ block: 'nearest' });
     positionTour(target);
 
     document.getElementById('tourStepLabel').textContent = `Step ${index + 1} of ${TOUR_STEPS.length}`;
@@ -996,20 +1024,33 @@ function runTourStep(index) {
       toolEl.style.display = 'none';
       toolEl.innerHTML = '';
     }
-    document.getElementById('tourText').textContent = step.text;
-    document.getElementById('tourNextBtn').textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+    if (step.html) {
+      document.getElementById('tourText').innerHTML = step.html;
+    } else {
+      document.getElementById('tourText').textContent = step.text || '';
+    }
     document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) =>
       `<span class="tour-dot ${i === index ? 'current' : ''}"></span>`).join('');
+
+    if (step.interactive) {
+      const elToWatch = step.interactiveEl ? step.interactiveEl() : target;
+      const eventType = step.interactiveEvent || 'click';
+      const handler = () => { setTimeout(advanceTour, 400); };
+      elToWatch.addEventListener(eventType, handler, { once: true });
+      interactiveCleanup = () => elToWatch.removeEventListener(eventType, handler);
+    }
   });
 }
 
 function advanceTour() {
+  if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   tourIndex += 1;
   if (tourIndex >= TOUR_STEPS.length) return endTour();
   runTourStep(tourIndex);
 }
 
 function startTour() {
+  if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   tourIndex = 0;
   buildTourEls();
   tourEls.scrim.classList.add('active');
@@ -1017,6 +1058,7 @@ function startTour() {
 }
 
 function endTour() {
+  if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   if (!tourEls) return;
   tourEls.scrim.classList.remove('active');
   tourEls.ring.style.width = '0px';

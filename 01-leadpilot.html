@@ -462,6 +462,10 @@
   }
 
   .tour-card button.tour-skip:hover { color: var(--text); }
+  .tour-click-hint { font-size: 12px; color: var(--accent); margin: 6px 0 0; text-align: center; font-weight: 500; }
+  .tour-step-skip { font-size: 11px; text-align: center; margin-top: 2px; }
+  .tour-step-skip a { color: var(--text-muted); text-decoration: none; }
+  .tour-step-skip a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -876,70 +880,45 @@ const TOOL_ICONS = {
 const TOUR_STEPS = [
   {
     target: () => document.querySelector('.app-topbar h1'),
-    text: 'This is LeadPilot — every inbound lead lands here pre-scored, so reps know who to call first without guessing.',
-    before: () => { state.view = 'leads'; renderApp(); }
-  },
-  {
-    target: () => document.querySelector('.badge-tool[data-tool="webflow"]'),
-    tool: 'webflow',
-    text: 'It starts with a Webflow form submission on your site — that single submit is the trigger for everything that follows.',
-    before: () => { state.view = 'leads'; renderApp(); }
+    text: 'Every inbound lead lands here pre-scored — your reps know who to call first without checking a spreadsheet or guessing.',
+    before: () => { state.view = 'leads'; state.sortKey = null; state.sortDir = 1; state.status = 'All'; state.search = ''; state.selectedId = null; renderApp(); }
   },
   {
     target: () => document.querySelector('.badge-tool[data-tool="make"]'),
     tool: 'make',
-    text: 'Make.com picks it up instantly — enriches the lead and writes it straight into this table. No one is copy-pasting from an inbox.'
+    text: 'Leads flow in automatically: Webflow form → Make.com enriches and scores it → this table. By the time you see a lead, it\'s already prioritized.'
   },
   {
     target: () => document.querySelector('.sort-btn[data-key="score"]'),
-    text: 'Click any column to sort. Watch the Score column — this is a real sort, not a styled list.',
-    before: () => { state.view = 'leads'; renderApp(); },
-    action: () => document.querySelector('.sort-btn[data-key="score"]').click()
-  },
-  {
-    target: () => document.querySelector('#leadsBody .score-pill'),
-    text: `Here's the actual rule behind that pill: score ${state.highThreshold} or above is green, ${state.midThreshold}–${state.highThreshold - 1} is amber, below that is red. It's a live threshold, not a label someone typed — change it in Settings and every pill on the board recolors immediately.`
-  },
-  {
-    target: () => document.querySelector('.filter-chip[data-status="Qualified"]'),
-    text: 'Status — New, Contacted, Qualified — tracks where they actually are in your funnel, separately from score. A lead can be high-scoring and still brand new; status moves when a rep acts, score tells them who to act on first.',
-  },
-  {
-    target: () => document.querySelector('.filter-chip[data-status="Qualified"]'),
-    text: 'Filter by status with one click — Qualified leads only, instantly.',
-    action: () => document.querySelector('.filter-chip[data-status="Qualified"]').click()
+    text: 'Click Score — that\'s a real sort. 80+ is green (call today), 60–79 amber (this week), below 60 red. Live thresholds, not labels someone typed in.',
+    action: () => { state.sortKey = 'score'; state.sortDir = -1; render(); }
   },
   {
     target: () => document.querySelector('#leadsBody tr'),
-    text: 'Click into any lead to open their detail panel and generate a tailored follow-up draft.',
-    action: () => { const row = document.querySelector('#leadsBody tr'); if (row) row.click(); }
+    text: 'Click this lead — the part that saves real hours starts right here.',
+    interactive: true
   },
   {
-    target: () => document.getElementById('detailPanel').querySelector('.generate-btn'),
+    target: () => document.getElementById('detailPanel'),
     tool: 'claude',
-    text: 'One click and Claude drafts the follow-up — the wording actually changes based on this lead\'s score and title.',
-    action: () => { const btn = document.getElementById('detailPanel').querySelector('.generate-btn'); if (btn) btn.click(); }
+    text: 'That follow-up was built from this lead\'s actual data — source, score, history. Twenty seconds, not twenty minutes. Edit it, send it, move on.',
+    action: () => { const btn = document.getElementById('genBtn'); if (btn) btn.click(); }
   },
   {
-    target: () => document.querySelector('.badge-tool[data-tool="hubspot"]'),
-    tool: 'hubspot',
-    text: 'Every one of these leads also exists as a contact in HubSpot, in sync, the moment it is created — this view and your CRM never drift apart.',
+    target: () => document.querySelector('.app-topbar h1'),
+    text: 'Sort by score, click the lead, send the draft, next. That\'s the whole morning workflow in under five minutes.',
     before: () => { state.view = 'leads'; renderApp(); }
   },
   {
-    target: () => document.querySelector('.nav-link[data-view="sources"]'),
-    text: 'Sources breaks every lead down by channel — count, average score, status mix — computed live, not hardcoded.',
-    action: () => { state.view = 'sources'; renderApp(); }
-  },
-  {
-    target: () => document.querySelector('.nav-link[data-view="settings"]'),
-    text: 'Settings is functional too — change the score threshold here and every lead re-tiers immediately.',
-    action: () => { state.view = 'settings'; renderApp(); }
+    target: () => document.querySelector('.logo'),
+    ctaStep: true,
+    html: 'Want this running in your business on tools you already own? I build systems like this in days, not months.<br><br><strong>Daniel Schley · AI Ops Expert</strong><br><a href="mailto:dschley@aiopsexpert.com" target="_blank">dschley@aiopsexpert.com</a> &middot; <a href="https://aiopsexpert.com" target="_blank">aiopsexpert.com</a>'
   }
 ];
 
 let tourIndex = 0;
 let tourEls = null;
+let interactiveCleanup = null;
 
 function buildTourEls() {
   if (tourEls) return tourEls;
@@ -953,23 +932,26 @@ function buildTourEls() {
     <div class="tour-step" id="tourStepLabel"></div>
     <div class="tour-tool" id="tourTool" style="display:none;"></div>
     <div class="tour-text" id="tourText"></div>
+    <div class="tour-click-hint" id="tourClickHint" style="display:none;">👆 Click to continue</div>
     <div class="tour-controls">
       <div class="tour-dots" id="tourDots"></div>
       <div class="tour-nav-btns">
-        <button class="tour-skip" id="tourSkipBtn" type="button">Skip</button>
+        <button class="tour-skip" id="tourSkipBtn" type="button">Skip tour</button>
         <button class="tour-next" id="tourNextBtn" type="button">Next</button>
       </div>
     </div>
+    <div class="tour-step-skip" id="tourStepSkip" style="display:none;"><a href="#" id="tourStepSkipLink">Skip this step →</a></div>
   `;
   document.body.append(scrim, ring, card);
   tourEls = { scrim, ring, card };
   document.getElementById('tourSkipBtn').addEventListener('click', endTour);
-  document.getElementById('tourNextBtn').addEventListener('click', advanceTour);
+  document.getElementById('tourStepSkipLink').addEventListener('click', (e) => { e.preventDefault(); advanceTour(); });
   return tourEls;
 }
 
 function positionTour(target) {
   const { ring, card } = buildTourEls();
+  target.scrollIntoView({ block: 'center', behavior: 'instant' });
   const r = target.getBoundingClientRect();
   const pad = 6;
   ring.style.top = (r.top - pad) + 'px';
@@ -978,9 +960,16 @@ function positionTour(target) {
   ring.style.height = (r.height + pad * 2) + 'px';
 
   const cardWidth = 300;
-  let cardTop = r.bottom + 14;
-  let cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
-  if (cardTop + 140 > window.innerHeight) cardTop = Math.max(r.top - 160, 16);
+  const cardH = 180;
+  const cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
+  let cardTop;
+  if (r.bottom + 14 + cardH <= window.innerHeight) {
+    cardTop = r.bottom + 14;
+  } else if (r.top - 14 - cardH >= 0) {
+    cardTop = r.top - 14 - cardH;
+  } else {
+    cardTop = Math.max((window.innerHeight - cardH) / 2, 16);
+  }
   card.style.top = cardTop + 'px';
   card.style.left = cardLeft + 'px';
 }
@@ -989,12 +978,33 @@ function runTourStep(index) {
   const step = TOUR_STEPS[index];
   if (!step) return endTour();
   if (step.before) step.before();
-  if (step.action) step.action();
+
+  const nextBtn = document.getElementById('tourNextBtn');
+  const clickHint = document.getElementById('tourClickHint');
+  const stepSkip = document.getElementById('tourStepSkip');
+
+  if (step.interactive) {
+    nextBtn.style.display = 'none';
+    clickHint.style.display = 'block';
+    stepSkip.style.display = 'block';
+    nextBtn.onclick = null;
+  } else {
+    nextBtn.style.display = '';
+    clickHint.style.display = 'none';
+    stepSkip.style.display = 'none';
+    if (step.ctaStep) {
+      nextBtn.textContent = 'Get in touch →';
+      nextBtn.onclick = () => { window.open('mailto:dschley@aiopsexpert.com'); endTour(); };
+    } else {
+      nextBtn.textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+      nextBtn.onclick = advanceTour;
+    }
+    if (step.action) step.action();
+  }
 
   setTimeout(() => {
     const target = step.target();
     if (!target) return advanceTour();
-    target.scrollIntoView({ block: 'nearest' });
     positionTour(target);
 
     document.getElementById('tourStepLabel').textContent = `Step ${index + 1} of ${TOUR_STEPS.length}`;
@@ -1007,20 +1017,33 @@ function runTourStep(index) {
       toolEl.style.display = 'none';
       toolEl.innerHTML = '';
     }
-    document.getElementById('tourText').textContent = step.text;
-    document.getElementById('tourNextBtn').textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+    if (step.html) {
+      document.getElementById('tourText').innerHTML = step.html;
+    } else {
+      document.getElementById('tourText').textContent = step.text || '';
+    }
     document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) =>
       `<span class="tour-dot ${i === index ? 'current' : ''}"></span>`).join('');
+
+    if (step.interactive) {
+      const elToWatch = step.interactiveEl ? step.interactiveEl() : target;
+      const eventType = step.interactiveEvent || 'click';
+      const handler = () => { setTimeout(advanceTour, 400); };
+      elToWatch.addEventListener(eventType, handler, { once: true });
+      interactiveCleanup = () => elToWatch.removeEventListener(eventType, handler);
+    }
   });
 }
 
 function advanceTour() {
+  if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   tourIndex += 1;
   if (tourIndex >= TOUR_STEPS.length) return endTour();
   runTourStep(tourIndex);
 }
 
 function startTour() {
+  if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   tourIndex = 0;
   buildTourEls();
   tourEls.scrim.classList.add('active');
@@ -1028,6 +1051,7 @@ function startTour() {
 }
 
 function endTour() {
+  if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   if (!tourEls) return;
   tourEls.scrim.classList.remove('active');
   tourEls.ring.style.width = '0px';

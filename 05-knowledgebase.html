@@ -425,6 +425,10 @@
   }
 
   .tour-card button.tour-skip:hover { color: var(--text); }
+  .tour-click-hint { font-size: 12px; color: var(--accent); margin: 6px 0 0; text-align: center; font-weight: 500; }
+  .tour-step-skip { font-size: 11px; text-align: center; margin-top: 2px; }
+  .tour-step-skip a { color: var(--text-muted); text-decoration: none; }
+  .tour-step-skip a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -850,78 +854,48 @@ const TOOL_ICONS = {
 const TOUR_STEPS = [
   {
     target: () => document.querySelector('.app-topbar h1'),
-    text: 'This is KnowledgeBase — a searchable internal wiki for SOPs and how-to guides, not just a glorified list of links.',
+    text: 'Every SOP and how-to your team has written, searchable across title AND full body text — no file browser, no guessing which doc had the answer.',
     before: () => { state.view = 'articles'; state.search = ''; state.activeTags = new Set(); state.selectedTitle = null; renderApp(); }
   },
   {
     target: () => document.querySelector('.badge-tool[data-tool="notion"]'),
     tool: 'notion',
-    text: 'Every article here is a real Notion page — this view is a searchable front door to the same documents your team already writes in, not a separate copy that goes stale.'
-  },
-  {
-    target: () => document.querySelector('.badge-tool[data-tool="loom"]'),
-    tool: 'loom',
-    text: 'Longer or trickier SOPs get a quick Loom walkthrough attached, so a written step never has to carry the whole explanation on its own.'
-  },
-  {
-    target: () => document.querySelector('.badge-tool[data-tool="google"]'),
-    tool: 'google',
-    text: 'Google Workspace stays in sync alongside it — calendar invites, shared docs, anything that already lives there links straight back into the relevant article instead of being duplicated.'
+    text: 'Articles live in Notion. Loom walkthroughs attach to the trickier ones. Google Workspace links go straight in rather than being duplicated. One search finds all three.'
   },
   {
     target: () => document.getElementById('searchInput'),
-    text: 'Search checks the full article body, not just the title. Watch what happens when we search "letterhead" — that word only appears inside one article\'s text.',
+    text: 'Search "letterhead" — that word only appears inside one article\'s body, not the title. The snippet pulls the exact line where it matched, not just the opening paragraph.',
+    before: () => { state.view = 'articles'; state.search = ''; state.activeTags = new Set(); state.selectedTitle = null; renderApp(); },
     action: () => {
       const input = document.getElementById('searchInput');
-      input.value = 'letterhead';
-      state.search = 'letterhead';
-      render();
+      if (input) { input.value = 'letterhead'; state.search = 'letterhead'; render(); }
     }
-  },
-  {
-    target: () => document.getElementById('resultCount'),
-    text: 'One result: "Style Guide for Client-Facing Documents." Its title never mentions letterhead — the match came from the body text, and the snippet pulls the surrounding sentence so you can see why it matched.'
   },
   {
     target: () => document.querySelector('.filter-chip[data-tag="Process"]'),
-    text: 'Tag filters use AND logic, not OR — selecting more than one tag narrows the list, it doesn\'t widen it. Watch: selecting "Process" alone shows 6 articles.',
+    text: 'Clear the search and click the Process tag — see how many articles carry it.',
     before: () => { state.search = ''; state.activeTags = new Set(); renderApp(); },
-    action: () => {
-      const chip = document.querySelector('.filter-chip[data-tag="Process"]');
-      if (chip) chip.click();
-    }
+    interactive: true
   },
   {
-    target: () => document.querySelector('.filter-chip[data-tag="Tools"]'),
-    text: 'Now add "Tools" on top of "Process." If this were OR logic, the count would jump to 11 — the combined total of both tags. Because it\'s AND, it drops to 1: only "Escalation Path for Technical Outages" carries both tags at once.',
-    action: () => {
-      const chip = document.querySelector('.filter-chip[data-tag="Tools"]');
-      if (chip) chip.click();
-    }
+    target: () => document.getElementById('resultCount'),
+    text: 'Six articles. Add a second tag and the count drops — filters here use AND logic, not OR. Two tags means an article must carry both.'
   },
   {
-    target: () => document.querySelector('.nav-link[data-view="templates"]'),
-    text: 'Templates is next. Each template shows a live count of how many articles share its category — not a number someone typed in.',
-    before: () => { state.search = ''; state.activeTags = new Set(); renderApp(); },
-    action: () => { state.view = 'templates'; renderApp(); }
+    target: () => document.querySelector('.app-topbar h1'),
+    text: 'Need a process? Search it. Need a category? Filter it. Need to hand it off? Every article is a live Notion link — always current, never a stale copy.',
+    before: () => { state.search = ''; state.activeTags = new Set(); state.view = 'articles'; renderApp(); }
   },
   {
-    target: () => document.querySelector('#view-templates .template-card'),
-    text: 'Take "New Client SOP," tagged Onboarding — it shows 3 linked articles, because exactly 3 articles in the library carry the Onboarding tag. Change an article\'s tags and this number updates with it.'
-  },
-  {
-    target: () => document.querySelector('.nav-link[data-view="settings"]'),
-    text: 'Last stop, Settings — this controls how articles are sorted and whether update dates show on cards.',
-    action: () => { state.view = 'settings'; renderApp(); }
-  },
-  {
-    target: () => document.getElementById('sortSelect'),
-    text: 'Default sort is "Newest first," ordering by the updated date. Switch it to "Title A-Z" and the Articles view re-sorts immediately — same data, different order, no page reload.'
+    target: () => document.querySelector('.logo'),
+    ctaStep: true,
+    html: 'Want this running in your business on tools you already own? I build systems like this in days, not months.<br><br><strong>Daniel Schley · AI Ops Expert</strong><br><a href="mailto:dschley@aiopsexpert.com" target="_blank">dschley@aiopsexpert.com</a> &middot; <a href="https://aiopsexpert.com" target="_blank">aiopsexpert.com</a>'
   }
 ];
 
 let tourIndex = 0;
 let tourEls = null;
+let interactiveCleanup = null;
 
 function buildTourEls() {
   if (tourEls) return tourEls;
@@ -935,23 +909,26 @@ function buildTourEls() {
     <div class="tour-step" id="tourStepLabel"></div>
     <div class="tour-tool" id="tourTool" style="display:none;"></div>
     <div class="tour-text" id="tourText"></div>
+    <div class="tour-click-hint" id="tourClickHint" style="display:none;">👆 Click to continue</div>
     <div class="tour-controls">
       <div class="tour-dots" id="tourDots"></div>
       <div class="tour-nav-btns">
-        <button class="tour-skip" id="tourSkipBtn" type="button">Skip</button>
+        <button class="tour-skip" id="tourSkipBtn" type="button">Skip tour</button>
         <button class="tour-next" id="tourNextBtn" type="button">Next</button>
       </div>
     </div>
+    <div class="tour-step-skip" id="tourStepSkip" style="display:none;"><a href="#" id="tourStepSkipLink">Skip this step →</a></div>
   `;
   document.body.append(scrim, ring, card);
   tourEls = { scrim, ring, card };
   document.getElementById('tourSkipBtn').addEventListener('click', endTour);
-  document.getElementById('tourNextBtn').addEventListener('click', advanceTour);
+  document.getElementById('tourStepSkipLink').addEventListener('click', (e) => { e.preventDefault(); advanceTour(); });
   return tourEls;
 }
 
 function positionTour(target) {
   const { ring, card } = buildTourEls();
+  target.scrollIntoView({ block: 'center', behavior: 'instant' });
   const r = target.getBoundingClientRect();
   const pad = 6;
   ring.style.top = (r.top - pad) + 'px';
@@ -960,9 +937,16 @@ function positionTour(target) {
   ring.style.height = (r.height + pad * 2) + 'px';
 
   const cardWidth = 300;
-  let cardTop = r.bottom + 14;
-  let cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
-  if (cardTop + 140 > window.innerHeight) cardTop = Math.max(r.top - 160, 16);
+  const cardH = 180;
+  const cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
+  let cardTop;
+  if (r.bottom + 14 + cardH <= window.innerHeight) {
+    cardTop = r.bottom + 14;
+  } else if (r.top - 14 - cardH >= 0) {
+    cardTop = r.top - 14 - cardH;
+  } else {
+    cardTop = Math.max((window.innerHeight - cardH) / 2, 16);
+  }
   card.style.top = cardTop + 'px';
   card.style.left = cardLeft + 'px';
 }
@@ -971,12 +955,33 @@ function runTourStep(index) {
   const step = TOUR_STEPS[index];
   if (!step) return endTour();
   if (step.before) step.before();
-  if (step.action) step.action();
+
+  const nextBtn = document.getElementById('tourNextBtn');
+  const clickHint = document.getElementById('tourClickHint');
+  const stepSkip = document.getElementById('tourStepSkip');
+
+  if (step.interactive) {
+    nextBtn.style.display = 'none';
+    clickHint.style.display = 'block';
+    stepSkip.style.display = 'block';
+    nextBtn.onclick = null;
+  } else {
+    nextBtn.style.display = '';
+    clickHint.style.display = 'none';
+    stepSkip.style.display = 'none';
+    if (step.ctaStep) {
+      nextBtn.textContent = 'Get in touch →';
+      nextBtn.onclick = () => { window.open('mailto:dschley@aiopsexpert.com'); endTour(); };
+    } else {
+      nextBtn.textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+      nextBtn.onclick = advanceTour;
+    }
+    if (step.action) step.action();
+  }
 
   setTimeout(() => {
     const target = step.target();
     if (!target) return advanceTour();
-    target.scrollIntoView({ block: 'nearest' });
     positionTour(target);
 
     document.getElementById('tourStepLabel').textContent = `Step ${index + 1} of ${TOUR_STEPS.length}`;
@@ -989,20 +994,33 @@ function runTourStep(index) {
       toolEl.style.display = 'none';
       toolEl.innerHTML = '';
     }
-    document.getElementById('tourText').textContent = step.text;
-    document.getElementById('tourNextBtn').textContent = index === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+    if (step.html) {
+      document.getElementById('tourText').innerHTML = step.html;
+    } else {
+      document.getElementById('tourText').textContent = step.text || '';
+    }
     document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) =>
       `<span class="tour-dot ${i === index ? 'current' : ''}"></span>`).join('');
+
+    if (step.interactive) {
+      const elToWatch = step.interactiveEl ? step.interactiveEl() : target;
+      const eventType = step.interactiveEvent || 'click';
+      const handler = () => { setTimeout(advanceTour, 400); };
+      elToWatch.addEventListener(eventType, handler, { once: true });
+      interactiveCleanup = () => elToWatch.removeEventListener(eventType, handler);
+    }
   });
 }
 
 function advanceTour() {
+  if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   tourIndex += 1;
   if (tourIndex >= TOUR_STEPS.length) return endTour();
   runTourStep(tourIndex);
 }
 
 function startTour() {
+  if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   tourIndex = 0;
   buildTourEls();
   tourEls.scrim.classList.add('active');
@@ -1010,6 +1028,7 @@ function startTour() {
 }
 
 function endTour() {
+  if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   if (!tourEls) return;
   tourEls.scrim.classList.remove('active');
   tourEls.ring.style.width = '0px';
