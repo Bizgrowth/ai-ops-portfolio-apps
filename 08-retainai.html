@@ -927,19 +927,11 @@ function positionTour(target) {
   ring.style.width = (r.width + pad * 2) + 'px';
   ring.style.height = (r.height + pad * 2) + 'px';
 
-  const cardWidth = 300;
-  const cardH = 180;
-  const cardLeft = Math.min(Math.max(r.left, 16), window.innerWidth - cardWidth - 16);
-  let cardTop;
-  if (r.bottom + 14 + cardH <= window.innerHeight) {
-    cardTop = r.bottom + 14;
-  } else if (r.top - 14 - cardH >= 0) {
-    cardTop = r.top - 14 - cardH;
-  } else {
-    cardTop = Math.max((window.innerHeight - cardH) / 2, 16);
-  }
-  card.style.top = cardTop + 'px';
-  card.style.left = cardLeft + 'px';
+  card.style.display = '';
+  card.style.top = '';
+  card.style.left = '';
+  card.style.bottom = '80px';
+  card.style.right = '16px';
 }
 
 function runTourStep(index) {
@@ -952,11 +944,13 @@ function runTourStep(index) {
   const stepSkip = document.getElementById('tourStepSkip');
 
   if (step.interactive) {
+    tourEls.scrim.style.pointerEvents = 'none';
     nextBtn.style.display = 'none';
     clickHint.style.display = 'block';
     stepSkip.style.display = 'block';
     nextBtn.onclick = null;
   } else {
+    tourEls.scrim.style.pointerEvents = '';
     nextBtn.style.display = '';
     clickHint.style.display = 'none';
     stepSkip.style.display = 'none';
@@ -1022,9 +1016,10 @@ function endTour() {
   if (interactiveCleanup) { interactiveCleanup(); interactiveCleanup = null; }
   if (!tourEls) return;
   tourEls.scrim.classList.remove('active');
+  tourEls.scrim.style.pointerEvents = '';
   tourEls.ring.style.width = '0px';
   tourEls.ring.style.height = '0px';
-  tourEls.card.style.top = '-9999px';
+  tourEls.card.style.display = 'none';
 }
 
 document.getElementById('tourBtn').addEventListener('click', startTour);
