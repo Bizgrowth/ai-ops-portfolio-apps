@@ -785,11 +785,17 @@ function positionTour(target) {
   ring.style.width = (r.width + pad * 2) + 'px';
   ring.style.height = (r.height + pad * 2) + 'px';
 
+  const isRightHalf = r.left > window.innerWidth / 2;
   card.style.display = '';
   card.style.top = '';
-  card.style.left = '';
   card.style.bottom = '80px';
-  card.style.right = '16px';
+  if (isRightHalf) {
+    card.style.left = '240px';
+    card.style.right = '';
+  } else {
+    card.style.right = '16px';
+    card.style.left = '';
+  }
 }
 
 function runTourStep(index) {
