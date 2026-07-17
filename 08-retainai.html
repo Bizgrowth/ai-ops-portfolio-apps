@@ -862,7 +862,9 @@ const TOUR_STEPS = [
     target: () => document.querySelector('#ticketsBody tr'),
     text: 'Back to All — click any ticket to open it and see the response drafting.',
     before: () => { state.priority = 'All'; state.selectedId = null; render(); },
-    interactive: true
+    interactive: true,
+    interactiveEl: () => document.getElementById('ticketsBody'),
+    interactiveEvent: 'click'
   },
   {
     target: () => document.getElementById('detailPanel'),

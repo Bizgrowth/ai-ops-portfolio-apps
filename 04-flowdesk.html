@@ -904,7 +904,9 @@ const TOUR_STEPS = [
   {
     target: () => document.querySelector('.kanban-card[data-id="4"]'),
     text: 'Click this card — see the SOP it\'s linked to and draft a first pass.',
-    interactive: true
+    interactive: true,
+    interactiveEl: () => document.getElementById('kanban'),
+    interactiveEvent: 'click'
   },
   {
     target: () => document.getElementById('detailPanel'),

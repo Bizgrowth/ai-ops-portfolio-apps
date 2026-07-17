@@ -896,7 +896,9 @@ const TOUR_STEPS = [
   {
     target: () => document.querySelector('#leadsBody tr'),
     text: 'Click this lead — the part that saves real hours starts right here.',
-    interactive: true
+    interactive: true,
+    interactiveEl: () => document.getElementById('leadsBody'),
+    interactiveEvent: 'click'
   },
   {
     target: () => document.getElementById('detailPanel'),

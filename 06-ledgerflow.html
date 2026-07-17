@@ -722,7 +722,9 @@ const TOUR_STEPS = [
   {
     target: () => document.querySelector('.pay-btn[data-id="INV-1005"]'),
     text: 'Click "Mark paid" on INV-1005 — watch that $4,100 disappear from the overdue total.',
-    interactive: true
+    interactive: true,
+    interactiveEl: () => document.getElementById('invoicesBody'),
+    interactiveEvent: 'click'
   },
   {
     target: () => document.querySelector('#summaryStrip .summary-card.bucket-warn'),
